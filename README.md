@@ -12,9 +12,13 @@ Next.js · Django REST Framework · Pydantic · Contract-driven integrations
 
 </div>
 
-![CartWeave workflow overview](docs/images/workflow-overview.svg)
+<p align="center">
+  <strong>发现需求 &nbsp; → &nbsp; 核验供货 &nbsp; → &nbsp; 评分定价 &nbsp; → &nbsp; 发布并确认可售</strong>
+</p>
 
-> 上图为业务结构示意，不是运行截图。首版可执行主线是 **CJ 选品 → 本地独立站发布 → 可售确认**。其他销售渠道有扩展设计，但尚不等于真实接入；不执行采购付款、物流发货或广告投放。
+---
+
+> **当前可运行：** CJ 选品 → 本地独立站发布 → 可售确认。其他销售渠道仍待接入；不执行采购付款、物流发货或广告投放。
 
 ## 为什么做 CartWeave？
 
