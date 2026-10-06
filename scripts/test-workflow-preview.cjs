@@ -177,7 +177,37 @@ test('default content resolves only to an executable approved registry version',
  assert.equal(bindDefaultContentSkill(custom,[row]),custom);
 });
 // Explicit finance assumptions for configured test fixtures; production defaults never assume zero tax.
-function fixtureWorkflow(...args){return model.createWorkflow(...args);}
+function fixtureWorkflow(...args){
+ const doc=model.createWorkflow(...args);
+ const fixtureParameters={
+  'image.start':{productRef:'example://product/1',referenceAssets:'example://asset/original'},
+  'image.generate':{imageProviderRef:'example://image-service'},
+ };
+ for(const node of doc.nodes)Object.assign(node.binding.parameters,fixtureParameters[node.definitionId]??{});
+ return doc;
+}
+
+test('image production is independent while promotion and first advertising remain one workflow',()=>{
+ const image=fixtureWorkflow('product-images'),promotion=fixtureWorkflow('campaign','shopify','merchant');
+ assert.equal(model.workflowTemplates.length,6);
+ assert.deepEqual(image.nodes.map(n=>n.definitionId),['image.start','image.brief','image.generate','image.check','image.authorize','image.end']);
+ assert.deepEqual(promotion.nodes.map(n=>n.definitionId),['campaign.start','campaign.creative','campaign.authorize','campaign.submit','campaign.wait','campaign.activate','campaign.end']);
+ assert(!promotion.nodes.some(n=>n.definitionId==='image.generate'));
+ for(const node of image.nodes)assert(!model.getSkill(node.binding.skillId).effects.some(e=>['spend','remote_write'].includes(e)));
+ assert.equal(operator.getNodeOperatorPolicy('image.generate').mode,'skill');
+ assert.equal(operator.getNodeOperatorPolicy('image.check').mode,'fixed');
+ assert.equal(check(promotion).valid,true);
+ assert.ok(model.getSkill('campaign.creative.core').parameterSchema.imagePackRef);
+ promotion.nodes=promotion.nodes.filter(n=>n.definitionId!=='campaign.authorize');reconnect(promotion);
+ assert.equal(check(promotion).valid,false);
+});
+
+test('new image drafts require explicit product, original assets and image service references',()=>{
+ const doc=model.createWorkflow('product-images');
+ assert(model.validateWorkflowPreview(doc).errors.some(e=>e.code==='PARAMETER'));
+ assert.equal(doc.nodes[0].binding.parameters.productRef,undefined);
+ assert.equal(doc.nodes.find(n=>n.definitionId==='image.generate').binding.parameters.imageProviderRef,undefined);
+});
 test('new draft gets explicit starting assumptions; deleted tax still blocks',()=>{
  const doc=model.createWorkflow('launch');
  const params=id=>doc.nodes.find(n=>n.definitionId===id).binding.parameters;

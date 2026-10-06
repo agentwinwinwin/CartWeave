@@ -20,6 +20,14 @@ const envelope = (id: string, properties: Record<string, Schema>, optional: stri
 });
 
 export const contractSchemas: Record<string, Schema> = {
+  "ProductImageRequest@1": envelope("ProductImageRequest@1", {productRef:text,referenceAssetRefs:list(text),usage:text,imageCount:{type:'integer',minimum:1,maximum:20}}),
+  "ProductImageFacts@1": envelope("ProductImageFacts@1", {productId:text,variantRefs:list(text),factRefs:list(text),referenceAssets:list(artifact),rightsEvidenceRefs:list(text),missingFacts:list(text)}),
+  "ProductImagePlan@1": envelope("ProductImagePlan@1", {productId:text,factsRef:text,revision:{type:'integer',minimum:1},immutableClaims:list(text),shots:list(object({purpose:text,prompt:text,width:{type:'integer',minimum:1},height:{type:'integer',minimum:1},referenceAssetRefs:list(text)}))}),
+  "GeneratedProductImages@1": envelope("GeneratedProductImages@1", {productId:text,planRef:text,planRevision:{type:'integer',minimum:1},assets:list(artifact),failedShotRefs:list(text)}),
+  "CheckedProductImages@1": envelope("CheckedProductImages@1", {productId:text,generatedPackRef:text,checkedAssetRefs:list(text),rejectedAssetRefs:list(text),manualReviewItems:list(text),checkVersion:text}),
+  "ApprovedProductImagePack@1": envelope("ApprovedProductImagePack@1", {productId:text,variantRefs:list(text),checkedPackRef:text,revision:{type:'integer',minimum:1},digest:text,approvalRef:text,assets:list(artifact),allowedUses:list(text)}),
+  "CampaignBrief@1": envelope("CampaignBrief@1", {productRef:text,market:text,goal:text,imagePackRef:nullable(text),factRefs:list(text)}),
+  "CreativePack@1": envelope("CreativePack@1", {briefRef:text,productRef:text,revision:{type:'integer',minimum:1},copyVariants:list(text),assetRefs:list(text),sourcePlanRef:nullable(text)}),
   "ProductQuery@2": envelope("ProductQuery@2", {requestId:text,market:text,categoryId:{type:"string",maxLength:200,description:"兼容旧单类目；使用 categoryQueries 时必须为空。"},categoryQueries:{type:"array",maxItems:10,items:object({categoryId:{type:"string",minLength:1,maxLength:200},keyword:{type:"string",maxLength:200}}),description:"可选扩展；省略保留旧单类目语义，空数组不限类目；非空时全局 keyword 必须为空，ID 唯一，limit 不小于类目数。"},keyword:{type:"string",maxLength:200},candidateSource:{enum:["trending","catalog"],description:"热门子集或全目录匹配；省略保持旧 catalog，不表示官方销量排序。"},emptyResultPolicy:{enum:["pause","drop_keyword_once"]},sourceRef:text,limit:{type:"integer",minimum:1,maximum:1000},requestedCurrency:text},["categoryQueries","candidateSource"]),
   "CJProductFacts@1": envelope("CJProductFacts@1", {
     requestId: text, task: object({market:text,category:text,limit:{type:"integer",minimum:1,maximum:1000},requestedCurrency:text}),

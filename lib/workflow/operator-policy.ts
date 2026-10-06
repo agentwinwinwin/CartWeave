@@ -16,6 +16,12 @@ const skill = (description: string, result: string): NodeOperatorPolicy => ({ mo
 const adapter = (description: string, result: string): NodeOperatorPolicy => ({ ...skill(description, result), implementationKind: "adapter", structuralEditing: false });
 
 export const nodeOperatorPolicies: Record<string, NodeOperatorPolicy> = {
+  'image.start':parameters('选择商品事实、规格与原图；独立制作素材，不要求商品已上架。','可追溯的商品与参考素材',['productRef','referenceAssets','usage','imageCount']),
+  'image.brief':skill('制定主图、场景图与细节图方案，保留不可改变的商品事实。','版本化图片制作方案'),
+  'image.generate':skill('选择图片生成 Skill 和服务连接；输出真实素材，不把提示词当图片。','生成图片及来源记录'),
+  'image.check':fixed('检查文件、尺寸与商品一致性，无法自动核实的项目交人工确认。','检查记录与待人工核验项'),
+  'image.authorize':parameters('逐张审核图片外观、授权与用途，不合格返回制作方案。','确认后的商品图素材包',['reviewChecklist']),
+  'image.end':fixed('交付素材包供上架与推广显式引用，不自动改线上商品。','版本化商品图素材包'),
   'market.intelligence':parameters('开启后采集销售与广告榜各前十，按已确认的类目方案确定搜索方向；关闭则跳过，保留原商品任务搜索词。','两组榜单快照与 CJ 供货类目方向',['enabled','categoryPlanRef','categoryQueries']),
 "product.start": parameters("在开始前集中设置搜索、需求门槛、库存供货、配送时效及费用假设；采集后按同一配置统一核验并补选。", "完整选品条件与范围", ["market", "category", "categoryId", "categoryQueries", "keyword", "emptyResultPolicy", "candidateSource", "limit", "requestedCurrency", "variantsPerProduct", "marketEvidenceRef", "allowEstimatedSales", "marketEvidenceSource", "minimumCJSales90d", "minimumCJOrderCount", "demandFirstCollection", "batchPublishing", "scanBudget","minimumInventory","requireVerifiedInventory","allowFactorySupply","factoryProcessingDays","factorySaleLimit","maximumDeliveryDays","allowCrossBorderShipping","platformFeeRate","paymentFeeRate","returnReserveRate","targetContributionRate","taxReserveUsd"]),
   "product.collect": fixed("继承任务条件，先排除同店铺已上架或提交中的 CJ 商品，再核验订单需求、排序并确定候选；之后才研究规格、库存与配送，已上架商品不占候选名额。", "去重后的需求达标候选、订单证据与排除原因"),
@@ -34,7 +40,7 @@ export const nodeOperatorPolicies: Record<string, NodeOperatorPolicy> = {
   "listing.wait": adapter("选择可售查询或事件适配 Skill，识别该渠道的真实可售状态；提交成功或 Skill 自报成功不能替代可售证据。", "实际可售或异常状态与证据"),
   "listing.end": fixed("记录可售商品；是否开始推广由另一个任务决定。", "可售商品记录"),
   "campaign.start": parameters("为已上架商品设定推广市场、目标与本轮范围。", "本轮推广任务", ["market", "reviewChecklist"]),
-  "campaign.creative": skill("制作宣传图、广告文案及适合目标受众的创意。", "待审核的推广素材"),
+  "campaign.creative": skill("制作广告文案与推广创意，引用商品图素材包；新商品图由独立流程制作。", "待审核的推广素材"),
   "campaign.authorize": parameters("确认广告素材与花费范围，未确认不允许投放。", "已确认的投放范围", ["reviewChecklist"]),
   "campaign.submit": adapter("配置广告平台提交 Skill，将已批准素材以暂停状态提交；系统限制动作及花费范围，不能提前投放。", "广告提交回执"),
   "campaign.wait": adapter("配置广告平台审核查询或事件 Skill；无真实审核结果时保持等待，不自动启动。", "审核结果与平台证据"),

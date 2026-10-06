@@ -31,6 +31,7 @@ const { chromium } = require("./browser-runtime.cjs");
    if(url.endsWith('/runs/run'))return route.fulfill({json:run});
    if(url.includes('/approvals/')&&req.method()==='POST'){approvalRequests++;assert.equal(req.postDataJSON().decision,'approve');const cursor=indexOf(approvalRequests===1?'listing.authorize':'listing.end');if(approvalRequests===1){run={...run,context:{brief,listing:brief},cursor,node_id:saved.document.nodes[cursor].id,approvals:[approve('listing')]};}else{run={...run,status:'succeeded',cursor,node_id:saved.document.nodes[cursor].id,context:{...run.context,published:{product_id:'mock-cj'}},approvals:[]};}return route.fulfill({json:run});}
    if(url.endsWith('/market-evidence'))return route.fulfill({json:[]});
+   if(url.endsWith('/business/customers'))return route.fulfill({json:{results:[],count:0,stores:[]}});
    if(url.endsWith('/connections/cj/search-preview')){
     const p=req.postDataJSON();assert.equal(p.keyword,'cat');assert.equal(p.categoryId,'');assert.deepEqual(p.categoryQueries,[]);assert.equal(p.emptyResultPolicy,'pause');
     return route.fulfill({json:{outcome:'no_results',products:[],message:'Mock keyword preview'}});
@@ -81,8 +82,10 @@ const { chromium } = require("./browser-runtime.cjs");
   assert.equal(saved.document.nodes.find(n=>n.definitionId==='product.start').binding.parameters.minimumInventory,7);
   assert.equal(saved.document.nodes.find(n=>n.definitionId==='product.start').binding.parameters.maximumDeliveryDays,18);
   assert(!saved.document.nodes.some(n=>['product.cost','product.decide'].includes(n.definitionId)));
-  assert.equal(saved.document.nodes[2].definitionId,'product.verify');
-  assert.equal(saved.document.nodes.length,11);
+  const verifyIndex=indexOf('product.verify');
+  assert.equal(saved.document.nodes[verifyIndex].definitionId,'product.verify');
+  assert.equal(saved.document.nodes.length,12);
+  assert.equal(saved.document.nodes[0].definitionId,'market.intelligence');
   assert.equal(saved.document.nodes.find(n=>n.definitionId==='product.start').binding.parameters.marketEvidenceSource,'cj');
   assert.equal(saved.document.nodes.find(n=>n.definitionId==='product.start').binding.parameters.minimumCJOrderCount,1);
   assert.equal(saved.document.nodes.find(n=>n.definitionId==='product.start').binding.parameters.demandFirstCollection,true);
@@ -116,22 +119,30 @@ const { chromium } = require("./browser-runtime.cjs");
   await page.getByRole('button',{name:'返回当前运行',exact:true}).waitFor();
   await page.reload();
   await page.getByRole('button',{name:'返回当前运行',exact:true}).waitFor();
-  // The primary /workflow route must restore the same saved design, not a new UUID.
+  // The catalog stays a catalog; opening a card restores the same saved design.
   await page.goto('http://localhost:3000/workflow');
+  await page.getByRole('heading',{name:'工作流',exact:true}).waitFor();
+  assert.equal(await page.getByRole('heading',{name:'Edited draft, not the current run',exact:true}).count(),0);
+  await page.reload();
+  await page.getByRole('heading',{name:'工作流',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'返回当前运行',exact:true}).count(),0);
+  assert.equal(await page.locator('dialog[open]').count(),0);
+  await page.screenshot({path:'/private/tmp/oceanflow-run-ui/workflow-directory.png',fullPage:true});
+  await page.getByRole('button',{name:'打开选品到上线',exact:true}).click();
+  await page.waitForURL('**/workflow/builder?template=launch');
   await page.getByRole('button',{name:'返回当前运行',exact:true}).waitFor();
   assert.equal(await page.getByRole('heading',{name:'Edited draft, not the current run',exact:true}).count(),1);
   await page.reload();
   await page.getByRole('button',{name:'返回当前运行',exact:true}).waitFor();
-  assert.equal(await page.getByRole('heading',{name:'Edited draft, not the current run',exact:true}).count(),1);
   assert.equal(stopRequests,0,'exit and navigation never cancel the task');
   await page.getByRole('button',{name:'返回当前运行',exact:true}).click();
   await page.getByRole('region',{name:'运行工作台',exact:true}).waitFor();
   assert.equal(runRequests,1,'returning to the existing task never creates a new run');
   assert.equal(run.id,'run');
   const started=new Date(Date.now()-200000).toISOString(),completedAt=new Date().toISOString();
-  run={...run,status:'running',cursor:2,node_id:saved.document.nodes[2].id,
+  run={...run,status:'running',cursor:verifyIndex,node_id:saved.document.nodes[verifyIndex].id,
    context:{batch_meta:{target:100,qualified:50},selection:{research_index:50,records:Array.from({length:100},(_,i)=>({id:`pid-${i}`,nameEn:`Fixture product ${i}`})),facts:Array.from({length:50},()=>({})),current_research:{records:[{id:'pid-50',nameEn:'Fixture product 50'}]}}},
-   attempts:[{node_id:saved.document.nodes[2].id,generation:1,status:'progress',created_at:started,completed_at:completedAt}]};
+   attempts:[{node_id:saved.document.nodes[verifyIndex].id,generation:1,status:'progress',created_at:started,completed_at:completedAt}]};
   const progress=page.getByRole('region',{name:'当前节点进度'});
   await progress.getByText('已合格 50 款 · 最终选取 100 款 · 统一核验 50 / 100 款',{exact:true}).waitFor();
   await progress.getByText('当前商品：Fixture product 50',{exact:true}).waitFor();
@@ -172,7 +183,7 @@ const { chromium } = require("./browser-runtime.cjs");
   assert.equal(await progress.getByRole('progressbar').getAttribute('value'),'51');
   // Historical CJ research pauses did not have basis/warning/unknowns or a variant ID.
   // They must render without pretending a complete score exists, and keep the canvas alive.
-  run={...run,status:'needs_attention',cursor:2,node_id:saved.document.nodes[2].id,
+  run={...run,status:'needs_attention',cursor:verifyIndex,node_id:saved.document.nodes[verifyIndex].id,
    context:{batch_meta:run.context.batch_meta,selection:run.context.selection,selection_proposal:{algorithm:'product.opportunity.v3',recommended_vid:null,ranked:[],rejected:[{pid:'missing-sales-product',reasons:['CJ 近 90 天销量未返回']}]}},error:'Fixture research pause'};
   await progress.getByText('已暂停，请查看原因',{exact:true}).waitFor();
   assert.equal(await page.locator('[data-run-state="running"]').count(),0);
@@ -188,7 +199,7 @@ const { chromium } = require("./browser-runtime.cjs");
   const resume=page.getByRole('button',{name:'继续运行（从断点恢复）',exact:true});
   await resume.waitFor();await resume.click();
   await page.waitForFunction(()=>document.body.textContent.includes('revision 2'));
-  assert.equal(run.cursor,2);assert.equal(run.context.selection.facts.length,51);
+  assert.equal(run.cursor,verifyIndex);assert.equal(run.context.selection.facts.length,51);
   run={...run,status:'waiting_approval',cursor:indexOf('product.authorize'),node_id:saved.document.nodes[indexOf('product.authorize')].id,context:{brief},approvals:[approve('brief')]};
   await page.getByRole('heading',{name:'第一轮：确认商品与售价',exact:true}).waitFor();
   await page.getByLabel('审批原因',{exact:true}).fill('Mock first review');await page.getByRole('button',{name:'批准当前版本',exact:true}).click();

@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ function combineChannelDirectory(documentChannels: SalesChannelDefinition[], loc
 }
 
 export function WorkflowBuilder({ library = false }: { library?: boolean }) {
+  const router = useRouter();
   const [document, setDocument] = useState<WorkflowDocument | null>(() => library ? null : createWorkflow("launch"));
   const [selected, setSelected] = useState<string | null>(null);
   const [mappingOpen,setMappingOpen]=useState(false);
@@ -131,7 +133,9 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
     savedDesigns().then(async rows=>{
       if(!active)return;
       savedRows.current=Object.fromEntries(rows.map(row=>[row.document.id,row]));
-      const requested=library?window.location.hash.slice(1):new URLSearchParams(window.location.search).get('template');
+      // The catalog loads references, never implicitly opens the latest design.
+      if(library)return;
+      const requested=new URLSearchParams(window.location.search).get('template');
       const row=requested?rows.find(r=>r.document.templateId===requested):rows[0];
       if(row){
         // Reload exactly what was saved; upgrades are explicit editing actions.
@@ -145,7 +149,8 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
     return()=>{active=false;};
   },[library]);
   useEffect(() => {
-    const template = library ? window.location.hash.slice(1) : new URLSearchParams(window.location.search).get("template");
+    if(library)return;
+    const template = new URLSearchParams(window.location.search).get("template");
     if (template && workflowTemplates.some(t => t.id === template)) setDocument(createWorkflow(template));
   }, [library]);
   useEffect(() => {
@@ -165,6 +170,7 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
     setResult(null); setBusy(false); setPreview(false); setMessage(text);
   };
   const openTemplate = (id: string) => {
+    if(library){router.push(`/workflow/builder?template=${encodeURIComponent(id)}`);return;}
     setFrozenConfig(null);
     const saved=Object.values(savedRows.current).find(row=>row.document.templateId===id);
     const next=saved?.document??createWorkflow(id, document?.environment.channel ?? defaultChannelId, document?.environment.fulfillment ?? "supplier", document?.customChannels ?? channelDirectory);
@@ -200,7 +206,7 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
     }catch(e){if(e instanceof BackendRequestError)setBlockedNode(e.nodeId??null);setMessage(`${saved?'配置已保存，但冻结运行未通过':'未生成冻结版本'}：${e instanceof Error?e.message:'校验失败'}`);}finally{setBusy(false);}
   };
   const restore = async () => {
-    try { const rows=await savedDesigns();const row=rows.find(r=>r.document.id===document?.id)??rows[0];if(!row){setMessage('后端还没有保存的配置；浏览器旧草稿可通过导出文件导入。');return;}savedRows.current[row.document.id]=row;commit(row.document,`已恢复后端保存版本 ${row.revision}。`);setSelected(null); }
+    try { const rows=await savedDesigns();const row=rows.find(r=>r.document.id===document?.id)??rows[0];if(!row){setMessage('后端还没有保存的配置；浏览器旧草稿可通过导出文件导入。');return;}savedRows.current[row.document.id]=row;if(library){router.push(`/workflow/builder?template=${encodeURIComponent(row.document.templateId)}`);return;}commit(row.document,`已恢复后端保存版本 ${row.revision}。`);setSelected(null); }
     catch (error) { setMessage(error instanceof Error ? error.message : "草稿无法恢复。"); }
   };
   const exportDocument = () => {
@@ -296,10 +302,10 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
 
   if(configLoading)return <Card><p role="status">正在读取后端保存配置…</p></Card>;
   if (!document) return <div className={shared.workspace}>
-    <PageHeader title="工作流" description="找品、上架、推广、交付与售后独立启动。系统守住规则，运营调整策略。" actions={<Button onClick={restore}>恢复我的设计 ↗</Button>} />
-    <Card className={styles.libraryIntro}><div><span className={shared.eyebrow}>COMMERCE OPERATIONS</span><h2>经营策略可调整，执行规则有边界。</h2><p>调整选品和内容策略，沿清晰的业务步骤推进。系统检查、授权和渠道执行不会因换一个策略而被跳过。</p><div className={styles.miniFlow}><span>商品来源</span><i>→</i><span>检查商品资料</span><i>→</i><span>核算利润</span><i>→</i><span>选品建议</span></div></div><div className={styles.libraryStats}><span><b>05</b>业务工作流</span><span><b>03</b>步骤编辑边界</span></div></Card>
+    <PageHeader title="工作流" description="选品上线、商品图生成、推广与首次投放独立启动。点击流程继续编辑已保存配置；刷新目录不会自动进入流程。" actions={<Button onClick={restore}>继续最近编辑 ↗</Button>} />
+    <Card className={styles.libraryIntro}><div><span className={shared.eyebrow}>COMMERCE OPERATIONS</span><h2>经营策略可调整，执行规则有边界。</h2><p>商品图独立制作并确认；推广与首次投放保持一条完整业务链，引用已确认素材，不重复生图。</p><div className={styles.miniFlow}><span>商品图生成</span><i>→</i><span>确认素材包</span><i>→</i><span>推广与首次投放</span></div></div><div className={styles.libraryStats}><span><b>{String(workflowTemplates.length).padStart(2,'0')}</b>业务工作流</span><span><b>03</b>步骤编辑边界</span></div></Card>
     <div className={shared.sectionHead}><nav className={shared.tabs} aria-label="工作流目录"><Button variant="ghost" aria-pressed={tab === "flows"} onClick={() => setTab("flows")}>业务流程</Button><Button variant="ghost" aria-pressed={tab === "skills"} onClick={() => setTab("skills")}>策略与工具</Button></nav><span>跨境电商通用 · 销售渠道可扩展</span></div>
-    {tab === "flows" ? <div className={shared.library}>{workflowTemplates.map((t, i) => <WorkflowCard key={t.id} eyebrow={`${String(i + 1).padStart(2, "0")} / ${t.cadence}`} title={t.title} description={t.description} detail={t.trigger} label="系统步骤 + 运营策略" meta={`${t.definitions.length} 个步骤 ↗`} accent={i === 2 ? "green" : i === 1 ? "violet" : undefined} onClick={() => openTemplate(t.id)} />)}</div> : <div className={styles.runtimeGrid}>{runtimes.map(([runtime, symbol, name, description]) => <Card key={runtime}><span>{symbol}</span><h3>{name}</h3><p>{description}</p><Badge>{runtime}</Badge></Card>)}</div>}
+    {tab === "flows" ? <div className={shared.library}>{workflowTemplates.map((t, i) => <WorkflowCard key={t.id} eyebrow={`${String(i + 1).padStart(2, "0")} / ${t.cadence}`} title={t.title} description={t.description} detail={t.trigger} label="系统步骤 + 运营策略" meta={Object.values(savedRows.current).some(row=>row.document.templateId===t.id)?'已保存 · 继续编辑 ↗':`${t.definitions.length} 个步骤 ↗`} accent={i === 2 ? "green" : i === 1 ? "violet" : undefined} onClick={() => openTemplate(t.id)} />)}</div> : <div className={styles.runtimeGrid}>{runtimes.map(([runtime, symbol, name, description]) => <Card key={runtime}><span>{symbol}</span><h3>{name}</h3><p>{description}</p><Badge>{runtime}</Badge></Card>)}</div>}
     <Card className={shared.skillIntro}><span className={shared.aiMark}>⋈</span><div><h3>接口与策略可以换，系统检查不能跳过。</h3><p>根据“系统固定”“可调参数”“可配置 Skill”标签查看规则或调整设置。渠道接口可配置，不代表可以删除授权和业务职责。</p></div><Button onClick={() => openTemplate("launch")}>开始设计 ↗</Button></Card>
     <p className={styles.status} role="status">{message || "本地设计预览 · 尚未连接执行服务"}</p>
   </div>;

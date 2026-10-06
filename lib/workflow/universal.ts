@@ -90,12 +90,18 @@ export const nodeDefinitions: NodeDefinition[] = [
   d("listing.wait", "等待真实可售结果", "wait", "PublicationReceipt@1", "PublishedProduct@1", "等待渠道处理、检查异常与可售状态。", { event: "渠道确认商品可售" }),
   d("listing.end", "交付可售商品", "end", "PublishedProduct@1", "PublishedProduct@1", "按需交接推广；不会强制启动广告。"),
   d("campaign.start", "定义推广任务", "trigger", "PublishedProduct@1", "CampaignBrief@1", "为可售商品选择目标、渠道和测试预算。"),
-  d("campaign.creative", "制作推广素材", "ai", "CampaignBrief@1", "CreativePack@1", "通过任意兼容实现生成广告文案、图片和变体。", { allowedEffects: ["read", "artifact"] }),
+  d("campaign.creative", "制作推广文案与创意", "ai", "CampaignBrief@1", "CreativePack@1", "编写广告文案、推广角度与创意变体，引用已有商品图；需新图时交给独立商品图生成流程。", { allowedEffects: ["read", "artifact"] }),
   d("campaign.authorize", "确认素材与花费", "approval", "CreativePack@1", "ApprovedCampaign@1", "确认本轮素材版本、目标和花费上限。", { provides: ["campaign.authorized"] }),
   d("campaign.submit", "提交暂停广告", "action", "ApprovedCampaign@1", "CampaignSubmission@1", "创建或更新原广告草稿，等待渠道审核。", { requires: ["campaign.authorized"], allowedEffects: ["read", "remote_write"] }),
   d("campaign.wait", "等待广告审核", "wait", "CampaignSubmission@1", "ReviewedCampaign@1", "渠道未确认前保持暂停。", { event: "广告审核通过", provides: ["campaign.reviewed"] }),
   d("campaign.activate", "启动批准的广告", "action", "ReviewedCampaign@1", "CampaignResult@1", "在已批准范围内激活广告。", { requires: ["campaign.authorized", "campaign.reviewed"], allowedEffects: ["read", "remote_write", "spend"] }),
   d("campaign.end", "记录推广结果", "end", "CampaignResult@1", "CampaignResult@1", "后续复盘由独立调度触发。"),
+  d("image.start", "选择商品与参考素材", "trigger", "ProductImageRequest@1", "ProductImageFacts@1", "选择商品、规格及原图，记录真实尺寸、外观与可用素材授权；不要求先上架。"),
+  d("image.brief", "制定商品图制作方案", "ai", "ProductImageFacts@1", "ProductImagePlan@1", "使用 Skill 制定主图、场景图与细节图需求；明确尺寸、用途及不能改变的商品事实。", { allowedEffects: ["read", "artifact"] }),
+  d("image.generate", "生成商品图", "ai", "ProductImagePlan@1", "GeneratedProductImages@1", "配置图片服务 Skill，输出真实图片引用、制作方案版本及生成来源；失败不生成虚假素材。", { allowedEffects: ["read", "artifact"] }),
+  d("image.check", "检查图片与商品一致性", "rule", "GeneratedProductImages@1", "CheckedProductImages@1", "检查图片可读取、规格尺寸及商品外观与声明；自动检查不足时保留待人工核验，不自报真实性通过。"),
+  d("image.authorize", "人工确认商品图", "approval", "CheckedProductImages@1", "ApprovedProductImagePack@1", "逐张确认外观、使用权与用途；不合格返回制作方案，修改后重新核验与确认。"),
+  d("image.end", "交付商品图素材包", "end", "ApprovedProductImagePack@1", "ApprovedProductImagePack@1", "交付带商品、规格、用途、版本及来源的素材包，供上架或推广显式选用；不自动替换已上线图片。"),
   d("order.start", "接收订单事件", "trigger", "ChannelEvent@1", "OrderContext@1", "统一字段但保留付款、取消和履约责任原始语义。"),
   d("order.eligible", "核验履约条件", "rule", "OrderContext@1", "FulfillmentPlan@1", "检查订单状态、库存、责任方与地址，不把待付款映射成已付。", { provides: ["fulfillment.eligible"] }),
   d("order.authorize", "确认履约权限", "approval", "FulfillmentPlan@1", "AuthorizedFulfillment@1", "商家动作检查授权；平台履约只确认观察范围。", { provides: ["fulfillment.authorized"] }),
@@ -124,7 +130,8 @@ export const nodeDefinitions: NodeDefinition[] = [
 
 export const workflowTemplates: WorkflowTemplate[] = [
   { id: "launch", title: "选品到上线", description: "集中配置条件，采集后统一核验补选；策略建议售价，系统复核，审核后发布。", trigger: "手动商品任务", cadence: "按需启动", definitions: ["product.start", "product.collect", "product.verify", "product.decide", "product.cost", "product.authorize", "content.make", "listing.validate", "listing.authorize", "listing.map", "listing.publish", "listing.wait", "listing.end"] },
-  { id: "campaign", title: "推广与首次投放", description: "统一创意产物，按渠道审核与授权启动。", trigger: "手动推广任务", cadence: "按需启动", definitions: ["campaign.start", "campaign.creative", "campaign.authorize", "campaign.submit", "campaign.wait", "campaign.activate", "campaign.end"] },
+  { id: "product-images", title: "商品图生成", description: "商品与参考图 → 制作方案 → 生图 → 一致性检查 → 人工确认 → 素材包。独立制作，不自动改线上商品。", trigger: "手动商品图任务", cadence: "按需启动", definitions: ["image.start", "image.brief", "image.generate", "image.check", "image.authorize", "image.end"] },
+  { id: "campaign", title: "推广与首次投放", description: "复用已确认商品图，制作推广文案与创意，按渠道审核与授权完成首次投放。", trigger: "手动推广任务", cadence: "按需启动", definitions: ["campaign.start", "campaign.creative", "campaign.authorize", "campaign.submit", "campaign.wait", "campaign.activate", "campaign.end"] },
   { id: "fulfillment", title: "订单到交付", description: "同一业务主线按责任方选择代发、仓库或平台观察实现。", trigger: "订单状态事件", cadence: "事件驱动", definitions: ["order.start", "order.eligible", "order.authorize", "order.dispatch", "order.wait", "order.record", "order.delivery", "order.end"] },
   { id: "optimize", title: "经营复盘与调整", description: "数据、分析、授权、执行分别具有清晰契约。", trigger: "定时经营检查", cadence: "定时运行", definitions: ["insight.start", "insight.check", "insight.propose", "insight.authorize", "insight.apply", "insight.end"] },
   { id: "support", title: "售后问题到解决", description: "复用证据和建议契约，平台决定允许的处理动作。", trigger: "客户问题或物流异常", cadence: "事件驱动", definitions: ["support.start", "support.context", "support.propose", "support.authorize", "support.execute", "support.wait", "support.end"] },
@@ -133,6 +140,8 @@ export const workflowTemplates: WorkflowTemplate[] = [
 const parameters: Record<string, ParameterDefinition> = { market: { type: "string", label: "目标市场", default: "US" }, timeout: { type: "number", label: "工具请求超时（秒）", default: 60, minimum: 1, maximum: 600 } };
 function parametersFor(definition: NodeDefinition, runtime: SkillRuntime): Record<string, ParameterDefinition> {
   const shared = structuredClone(parameters);
+  if(definition.id==='image.start')return {productRef:{type:'string',label:'商品资料引用（不填凭证）',required:true},referenceAssets:{type:'string',label:'原图与参考素材引用',required:true},usage:{type:'string',label:'图片用途',default:'商品主图与详情图'},imageCount:{type:'number',label:'制作图片数量',default:4,minimum:1,maximum:20}};
+  if(definition.id==='image.generate')return {skillInstruction:{type:'string',label:'图片生成指令',default:'按已确认制作方案生成，不改变商品外观或虚构功能。'},imageProviderRef:{type:'string',label:'图片服务连接引用',required:true}};
   if(definition.id==='product.start')shared.demandQualifiedQuota={type:'boolean',label:'订单数达标才占候选额度（低订单、未知、重复及已上架不计）',default:true};
   if(definition.id==='product.start')shared.finalSelectionMode={type:'string',label:'最终商品选取方式',default:'global',enum:['global','per_category']};
 if (definition.id === "product.start") return { ...shared, candidateSource:{type:"string",label:"候选商品来源",default:"catalog",enum:["catalog","trending"]}, marketEvidenceSource:{type:"string",label:"市场证据来源",enum:["none","cj","external"]},minimumCJSales90d:{type:"number",label:"历史 v3 · CJ 近90天最低销量",minimum:1,maximum:100000000},scanBudget:{type:"number",label:"最多扫描商品数（独立预算，20–10000）",default:recommendedSelectionDefaults.scanBudget,minimum:20,maximum:10000},batchPublishing:{type:"boolean",label:"按合格商品目标补位并批量发布"},demandFirstCollection:{type:"boolean",label:"先核验需求再确定候选"},minimumCJOrderCount:{type:"number",label:"CJ 最低订单数（统计周期未声明）",default:1,minimum:1,maximum:100000000}, marketEvidenceRef:{type:"string",label:"市场证据版本"}, allowEstimatedSales:{type:"boolean",label:"允许估算销量"}, variantsPerProduct:{type:"number",label:"每件商品研究规格上限（1–20）",default:recommendedSelectionDefaults.variantsPerProduct,minimum:1,maximum:20}, categoryQueries: {type:"array",label:"CJ 多类目查询"}, category: { type: "string", label: "旧类目（需重新选择）" }, categoryId: { type: "string", label: "CJ 商品类目", default: "" }, keyword: { type: "string", label: "选品关键词（可选）", default: "" }, emptyResultPolicy: {type:"string",label:"没有商品时",default:"pause",enum:["pause","drop_keyword_once"]}, limit: { type: "number", label: "本次合格商品目标（最多 100 款）", default: recommendedSelectionDefaults.limit, minimum: 1, maximum: 100 }, requestedCurrency: { type: "string", label: "任务核算币种", default: "USD", enum: ["USD", "EUR", "GBP", "CNY"] } };
@@ -144,13 +153,14 @@ if (definition.id === "product.start") return { ...shared, candidateSource:{type
   if (definition.id === "product.delivery") return { maximumDeliveryDays: { type: "number", label: "最长预计运输时效（天）", default: recommendedSelectionDefaults.maximumDeliveryDays, minimum: 1, maximum: 90 }, allowCrossBorderShipping: { type: "boolean", label: "允许跨境直发", default: true } };
   if (definition.id === "product.cost") return { targetContributionRate:{type:"number",label:"目标贡献率假设（%，销量策略扣所填获客成本后）",default:30,minimum:1,maximum:50},taxReserveUsd:{type:"number",label:"税费及附加费预留 USD（启动假设，请按商品核实）",default:recommendedSelectionDefaults.taxReserveUsd,required:true,minimum:0,maximum:10000}, platformFeeRate: { type: "number", label: "销售平台费用率假设（%，按店铺核实）", default: 0, minimum: 0, maximum: 100 }, paymentFeeRate: { type: "number", label: "支付费用率假设（%）", default: 3, minimum: 0, maximum: 100 }, returnReserveRate: { type: "number", label: "退货成本预留（%）", default: 5, minimum: 0, maximum: 100 } };
   if (runtime === "manual") return { ...shared, ...(definition.kind==="approval"?{approvalEnabled:{type:"boolean" as const,label:"启用人工审核",default:true}}:{}), reviewChecklist: { type: "string", label: "人工检查清单", default: "核对证据、缺失信息及本次处理范围。" } };
-  if (definition.id === "content.make" || definition.id === "campaign.creative") return { ...shared, prompt: { type: "string", label: "内容与图片制作指令", default: "依据已核实的商品事实生成本地化文案；图片工具返回实际素材引用。" }, imageProviderRef: { type: "string", label: "图片生成服务引用（不是已生成图片）", default: "" }, locale: { type: "string", label: "输出语言", default: "en-US" } };
+  if (definition.id === "campaign.creative") return {...shared,imagePackRef:{type:'string',label:'已确认商品图素材包引用'},prompt:{type:'string',label:'推广文案与创意指令',default:'依据商品事实编写文案，复用已确认素材；缺图片交给商品图生成流程，不虚构素材引用。'},locale:{type:'string',label:'输出语言',default:'en-US'}};
+  if (definition.id === "content.make") return { ...shared, prompt: { type: "string", label: "内容与图片制作指令", default: "依据已核实的商品事实生成本地化文案；图片工具返回实际素材引用。" }, imageProviderRef: { type: "string", label: "图片生成服务引用（不是已生成图片）", default: "" }, locale: { type: "string", label: "输出语言", default: "en-US" } };
   if (runtime === "script" && definition.id === "product.decide") return { ...shared, scoringWeights: { type: "string", label: "评分权重配置", default: "supply:0.4,evidence:0.4,differentiation:0.2" }, sampleCount: { type: "number", label: "抽样数量", default: 20, minimum: 1, maximum: 1000 } };
   if (runtime === "llm" || runtime === "composite") return { ...shared, instruction: { type: "string", label: "分析与处理指令", default: "依据可追溯证据输出契约结果；缺少信息应明确标记。" }, modelRef: { type: "string", label: "模型连接引用", default: "" } };
   if (runtime === "connector") return { ...shared, resourceRef: { type: "string", label: "业务资源引用（不填凭证）", default: "" } };
   return { ...shared, ruleNote: { type: "string", label: "规则参数说明", default: "遵循固定契约，保留缺失事实。" } };
 }
-const runtimeFor = (definition: NodeDefinition): SkillRuntime => definition.kind === "approval" || ["product.start", "campaign.start"].includes(definition.id) ? "manual" : definition.kind === "ai" ? "composite" : definition.kind === "rule" || definition.kind === "end" ? "script" : "connector";
+const runtimeFor = (definition: NodeDefinition): SkillRuntime => definition.kind === "approval" || ["product.start", "campaign.start", "image.start"].includes(definition.id) ? "manual" : definition.kind === "ai" ? "composite" : definition.kind === "rule" || definition.kind === "end" ? "script" : "connector";
 function taskRuleParameters():Record<string,ParameterDefinition> {
   return Object.assign({},...['product.filter','product.delivery','product.cost'].map(id=>parametersFor(nodeDefinitions.find(n=>n.id===id)!,'script')));
 }
@@ -241,6 +251,7 @@ export function createWorkflow(templateId: string, channel: Channel = defaultCha
   const relationPairs: Record<string, [string, string, WorkflowEdge["kind"]][]> = {
     launch: [["product.decide", "product.collect", "collaboration"], ["product.authorize", "product.decide", "feedback"], ["listing.authorize", "content.make", "feedback"]],
     campaign: [["campaign.creative", "campaign.start", "collaboration"], ["campaign.authorize", "campaign.creative", "feedback"]],
+    'product-images': [["image.authorize", "image.brief", "feedback"]],
     optimize: [["insight.propose", "insight.check", "collaboration"], ["insight.authorize", "insight.propose", "feedback"]],
     support: [["support.propose", "support.context", "collaboration"], ["support.authorize", "support.propose", "feedback"]],
   };
