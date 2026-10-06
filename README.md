@@ -107,7 +107,7 @@ npm run build
 npm run desktop
 ```
 
-打开 **http://localhost:3000**。本机启动器同时启动 Next.js、Django 与单个 worker，仅监听回环地址。这里的「desktop」是本机浏览器工作台，不是已打包的桌面安装程序。以上命令适用于 macOS / Linux；Windows 可使用 WSL。
+打开 [http://localhost:3000](http://localhost:3000)。本机启动器同时启动 Next.js、Django 与单个 worker，仅监听回环地址。这里的「desktop」是本机浏览器工作台，不是已打包的桌面安装程序。以上命令适用于 macOS / Linux；Windows 可使用 WSL。
 
 首次使用：在连接页面安全填写并验证 CJ 密钥 → 在工作流中验收测试店铺接口 → 配置商品任务和策略 → 保存并冻结 → 在同画布运行。不会自动填写你的店铺、CJ 或模型密钥。
 
@@ -151,7 +151,7 @@ COMMERCE_ENV=local ../server/.venv/bin/python manage.py test tests
 
 回归使用合成数据、模拟外部接口与临时测试数据库，不代表所有真实渠道通过验收。浏览器脚本另需安装 Playwright；部分脚本会写入本机测试站，执行前阅读脚本说明，不对生产店铺运行。
 
-## 当前边界与路线图
+## 路线图
 
 - [x] CJ 到本地测试站的选品、核验、批次排名与发布闭环。
 - [x] 冻结流程、真实执行视图、恢复/停止、业务定时器。
