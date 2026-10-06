@@ -1,0 +1,32 @@
+.next/
+node_modules/
+out/
+.DS_Store
+*.log
+.env*
+!.env.example
+server/.venv/
+backend/.venv/
+backend/.local/
+__pycache__/
+*.pyc
+*.sqlite3
+
+# Local observations, private exports and generated build/test artifacts.
+data/cj-intelligence/
+assets/prototypes/
+dist/
+*.tsbuildinfo
+*.sqlite3-*
+*.db
+*.db-*
+*.pem
+*.key
+**/.local/
+**/.venv/
+coverage/
+playwright-report/
+test-results/
+# Original supplier photos are not distributed as project-owned assets.
+public/test-store/crownley/products/*.jpg
+public/test-store/crownley/products/*.png

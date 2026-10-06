@@ -1,0 +1,9 @@
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-2, 8px); }
+.directory { max-height: 220px; overflow: auto; border: 1px solid var(--color-line); border-radius: var(--radius-md); padding: 8px; }
+.option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 8px; cursor: pointer; overflow-wrap: anywhere; }
+.option input { flex: 0 0 auto; margin-top: 3px; accent-color: var(--color-blue); }
+.directory .option{display:flex;align-items:center;gap:12px;border-radius:8px;font-size:13px;line-height:1.7}
+.option input[type="checkbox"]{width:16px;height:16px;flex:0 0 16px;padding:0;margin:0;border-radius:4px}
+.option:focus-within { outline: 2px solid var(--color-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
+.option:hover, .result { background: var(--color-canvas); }
+.result { border-radius: var(--radius-md); padding: 12px; margin-top: 8px; overflow-wrap: anywhere; }

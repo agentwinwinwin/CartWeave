@@ -1,0 +1,33 @@
+{
+  "purpose": "Synthetic parser fixture; not a collected account snapshot or runtime evidence.",
+  "sales": {
+    "sourceUrl": "https://www.cjdropshipping.com/intelligence/sales-trends",
+    "rows": [
+      [1,"Sample Category 1","1001","$415.7M","8.4M","3.28%"],
+      [2,"Sample Category 2","1002","$90M","9M","2%"],
+      [3,"Sample Category 3","1003","$80M","8M","2%"],
+      [4,"Sample Category 4","1004","$70M","7M","2%"],
+      [5,"Sample Category 5","1005","$60M","6M","2%"],
+      [6,"Sample Category 6","1006","$50M","5M","2%"],
+      [7,"Sample Category 7","1007","$40M","4M","2%"],
+      [8,"Sample Category 8","1008","$30M","3M","2%"],
+      [9,"Sample Category 9","1009","$20M","2M","2%"],
+      [10,"Sample Category 10","1010","$10M","1M","2%"]
+    ]
+  },
+  "advertising": {
+    "sourceUrl": "https://www.cjdropshipping.com/intelligence/ad-trends",
+    "rows": [
+      [1,"Sample Ad Category 1","000000000000000000002001","10K","9K"],
+      [2,"Sample Ad Category 2","000000000000000000002002","9K","8K"],
+      [3,"Sample Ad Category 3","000000000000000000002003","8K","7K"],
+      [4,"Sample Ad Category 4","000000000000000000002004","7K","6K"],
+      [5,"Sample Ad Category 5","000000000000000000002005","6K","5K"],
+      [6,"Sample Ad Category 6","000000000000000000002006","5K","4K"],
+      [7,"Sample Ad Category 7","000000000000000000002007","4K","3K"],
+      [8,"Sample Ad Category 8","000000000000000000002008","3K","2K"],
+      [9,"Sample Ad Category 9","000000000000000000002009","2K","1K"],
+      [10,"Sample Ad Category 10","000000000000000000002010","1K","500"]
+    ]
+  }
+}

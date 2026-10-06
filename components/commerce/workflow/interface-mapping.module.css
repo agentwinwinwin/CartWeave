@@ -1,0 +1,29 @@
+.layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:20px; align-items:start; }
+.main { display:grid; gap:20px; min-width:0; }
+.panel { padding:24px; min-width:0; }
+.panel h2,.panel h3 { margin-top:0; }
+.panel{padding:28px;border-radius:var(--radius-lg)}.panel h2{font-size:22px;letter-spacing:-.4px}.panel h3{font-size:17px}
+.modelForm{margin-top:22px;padding:22px;border:1px solid var(--color-line);border-radius:var(--radius-md);background:#fafbfc}
+.fields label{font-size:13px;line-height:1.7}.notice{border:1px solid var(--color-line);border-radius:var(--radius-md);padding:16px;font-size:13px;line-height:1.7}.notice:empty{display:none}
+.tableWrap{border:1px solid var(--color-line);border-radius:var(--radius-md)}.tableWrap th{background:#f8f9fb;font-weight:550}
+.facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:20px; margin:20px 0; }
+.facts dt { color:var(--color-muted); font-size:12px; margin-bottom:8px; }
+.facts dd { margin:0; font-weight:600; overflow-wrap:anywhere; }
+.heading,.actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.heading { justify-content:space-between; }
+.fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-block:20px; }
+.fields label,.composer { display:grid; gap:8px; min-width:0; font-size:13px; }
+.muted { color:var(--color-muted); font-size:13px; line-height:1.7; }
+.modelForm { padding-top:20px; border-top:1px solid var(--color-line); }
+.message { padding:16px 0; border-bottom:1px solid var(--color-line); }
+.message p { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.7; }
+.composer { margin-block:20px; }
+.composer textarea { width:100%; resize:vertical; }
+.notice { padding:12px; color:var(--color-ink); background:var(--color-canvas); overflow-wrap:anywhere; }
+.tableWrap { overflow:auto; margin-block:20px; }
+.tableWrap table { width:100%; border-collapse:collapse; font-size:12px; min-width:620px; }
+.tableWrap th,.tableWrap td { padding:12px; border-bottom:1px solid var(--color-line); text-align:left; vertical-align:top; overflow-wrap:anywhere; max-width:300px; }
+.json { max-height:400px; overflow:auto; font-size:11px; }
+.main aside button { margin-block:5px; }
+@media(max-width:1100px) { .layout { grid-template-columns:1fr; } }
+@media(max-width:760px) { .fields { grid-template-columns:1fr; } .panel { padding:18px; } }

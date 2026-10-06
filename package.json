@@ -1,0 +1,26 @@
+{
+  "name": "cartweave",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "desktop": "node scripts/start-desktop.cjs",
+    "test:workflow": "node --test scripts/test-workflow-preview.cjs",
+    "test:store": "node --test scripts/test-store.cjs",
+    "test:skills": "node --test scripts/test-personal-skills.cjs"
+  },
+  "dependencies": {
+    "next": "15.5.26",
+    "react": "19.1.5",
+    "react-dom": "19.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.5.2",
+    "@types/react": "19.1.16",
+    "@types/react-dom": "19.1.9",
+    "typescript": "5.9.2"
+  },
+  "description": "Contract-driven cross-border commerce workflows"
+}

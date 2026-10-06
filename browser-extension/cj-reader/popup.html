@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><link rel="stylesheet" href="popup.css"><title>CommerceOS CJ 连接</title></head>
+<body><h1>CJ 行情连接</h1><p id="notice" role="status"></p><p>使用你正常登录的 Chrome。只读取销售、广告两榜，不读取密码或 Cookie。</p>
+<form id="pair"><label for="code">工作台一次性配对码</label><input id="code" autocomplete="off" required placeholder="从行情节点复制，5 分钟内有效"><button>连接本机工作台</button></form>
+<div class="links"><a href="https://www.cjdropshipping.com/intelligence/sales-trends" target="_blank" rel="noreferrer">打开 CJ 销售榜 ↗</a><a href="https://www.cjdropshipping.com/intelligence/ad-trends" target="_blank" rel="noreferrer">打开 CJ 广告榜 ↗</a></div>
+<button id="refresh">检查连接 / 领取采集任务</button><button id="disconnect" class="secondary">断开本扩展</button>
+<p class="foot">采集由工作台或启用的行情节点发起。保持 Chrome 打开，后台约每 30 秒领取任务。遇到验证停止，不绕过安全限制。</p><script src="popup.js"></script></body></html>

@@ -1,0 +1,26 @@
+.connection{--beam-color:var(--color-focus);color:var(--color-subtle)}
+.track{fill:none;stroke:color-mix(in srgb,var(--color-muted) 30%,var(--color-line));stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:stroke .3s,opacity .3s}
+.feedback .track{stroke-dasharray:4 6;opacity:.48}
+.collaboration .track{stroke-dasharray:2 5;opacity:.45}
+.completed:not(.active):not(.joint) .track{stroke:color-mix(in srgb,var(--color-green) 40%,var(--color-line))}
+.active,.joint{color:var(--beam-color)}
+.active .track,.joint .track{stroke:var(--beam-color);opacity:.32;stroke-dasharray:none}
+.railGlow{fill:none;stroke:var(--beam-color);stroke-width:7;opacity:.09;filter:blur(4px)}
+.beam{fill:none;stroke:var(--beam-color);stroke-width:2.8;stroke-linecap:round;stroke-dasharray:var(--beam-tail) 200;stroke-dashoffset:var(--beam-tail);animation:beamTravel var(--beam-duration) linear both}
+.beamGlow{stroke-width:10;opacity:.35;filter:blur(4px)}
+.beamCore{stroke:var(--color-surface);stroke-width:1;opacity:.85}
+.joint .beam{animation-iteration-count:infinite}
+.joint .railGlow{opacity:.18;animation:railBreathe 2.8s ease-in-out infinite}
+.halo{fill:var(--beam-color);opacity:.22;filter:blur(5px)}
+.aura{fill:var(--beam-color);opacity:.25;filter:blur(1px)}
+.head{fill:var(--beam-color)}
+.core{fill:var(--color-surface)}
+.reverse{--beam-color:var(--color-green)}
+.joint .reverseBeam{--beam-color:var(--color-green);animation-direction:reverse}
+.port{fill:var(--color-surface);stroke:color-mix(in srgb,var(--color-muted) 42%,var(--color-line));stroke-width:1.4}
+.active .port,.joint .port{stroke:var(--beam-color);fill:color-mix(in srgb,var(--beam-color) 15%,var(--color-surface))}
+.label{font-size:9px;fill:var(--color-blue);paint-order:stroke;stroke:var(--color-canvas);stroke-width:5;stroke-linejoin:round}
+/* Keep the leading tip aligned with animateMotion: exactly 0 → 100. */
+@keyframes beamTravel{to{stroke-dashoffset:calc(var(--beam-tail) - 100)}}
+@keyframes railBreathe{0%,100%{opacity:.12}50%{opacity:.25}}
+@media(prefers-reduced-motion:reduce){.beam,.joint .beam,.joint .railGlow{animation:none}.beam{stroke-dasharray:none;opacity:.6}.particle,.beamGlow,.beamCore{display:none}.track{transition:none}}

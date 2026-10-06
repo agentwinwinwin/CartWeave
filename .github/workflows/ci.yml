@@ -1,0 +1,30 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:workflow && npm run test:store && npm run test:skills
+      - run: node --test scripts/test-cj-extension.cjs
+      - run: npm run build
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r backend/requirements.lock
+      - run: python backend/scripts/configure_local.py
+      - run: python manage.py test tests
+        working-directory: backend
+        env:
+          COMMERCE_ENV: local

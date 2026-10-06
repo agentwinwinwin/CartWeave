@@ -1,0 +1,14 @@
+"use client";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { SelectField } from "@/components/ui/select-field";
+import { StatCard } from "@/components/ui/stat-card";
+import { NodeAccess } from "@/components/commerce/workflow/node-access";
+
+const colors=[
+  ["Ink","var(--color-ink)"],["Primary","var(--color-primary)"],["Strategy","var(--color-blue)"],["Parameters","var(--color-workflow-parameter)"],["Green","var(--color-green)"],["Red","var(--color-red)"],
+  ["Orange","var(--color-orange)"],["Muted","var(--color-muted)"],["Line","var(--color-line)"],["Canvas","var(--color-canvas)"],["Surface","var(--color-surface)"],
+];
+export function DesignSystemPreview(){return <main className="design-system"><header className="design-system__hero"><Badge tone="info">Development only</Badge><h1>CommerceOS 设计系统</h1><p>用于验证设计令牌、基础组件和响应式布局的一致性。</p></header><section className="design-section"><h2>颜色</h2><div className="swatch-grid">{colors.map(([name,value])=><Card className="swatch" key={name}><div className="swatch__color" style={{background:value}}/><div className="swatch__info"><b>{name}</b><small>{value}</small></div></Card>)}</div></section><section className="design-section"><h2>字体</h2><Card className="demo-card"><h1>页面标题 32 / 700</h1><h2>模块标题 22 / 650</h2><h3>卡片标题 19 / 650</h3><p>正文优先使用平台系统字体，中文采用苹方或微软雅黑。跨境电商运营数据应保持清晰、紧凑且易于快速扫描。</p><small>辅助说明与元数据使用较弱的层级和颜色。</small></Card></section><section className="design-section"><h2>按钮与状态</h2><div className="component-row"><Button variant="primary">主要按钮</Button><Button>次要按钮</Button><Button variant="ghost">幽灵按钮</Button><Button variant="pill">圆角操作</Button><Button disabled>禁用状态</Button><Badge tone="success">在售</Badge><Badge tone="info">审核中</Badge><Badge tone="warning">待发货</Badge><Badge tone="danger">异常</Badge></div></section><section className="design-section"><h2>工作流编辑权限</h2><div className="component-row"><NodeAccess mode="fixed"/><NodeAccess mode="parameters"/><NodeAccess mode="skill"/><NodeAccess mode="fixed" compact/><NodeAccess mode="parameters" compact/><NodeAccess mode="skill" compact/></div><p>图标、文字和色调共同表达可编辑范围；运行状态独立显示。</p></section><section className="design-section"><h2>表单</h2><div className="form-grid"><Input placeholder="搜索商品名称 / SKU..."/><SelectField defaultValue="all"><option value="all">全部分类</option></SelectField></div></section><section className="design-section"><h2>卡片</h2><div className="card-grid"><StatCard label="在售商品" value="1,328" change="↑12%"/><StatCard label="待审核" value="56" change="↑8%" tone="blue"/><StatCard label="库存预警" value="28" change="↑40%" tone="red"/></div></section><section className="design-section"><h2>布局</h2><div className="layout-preview"><Card>双列工作区 A</Card><Card>双列工作区 B</Card></div></section></main>}

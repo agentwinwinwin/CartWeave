@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: commerceos
+      POSTGRES_USER: commerceos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a private PostgreSQL password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U commerceos]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    environment: &environment
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set Django secret}
+      COMMERCE_CREDENTIAL_KEY: ${COMMERCE_CREDENTIAL_KEY:?Set a Fernet key}
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,api
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?Set your HTTPS frontend origin}
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: commerceos
+      POSTGRES_USER: commerceos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      TEST_STORE_API_BASE: http://api:8000/api/test-store/v1
+    ports:
+      - 127.0.0.1:8010:8000
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  worker:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    environment: *environment
+    command: [celery, -A, config, worker, --loglevel=WARNING, --concurrency=2]
+    depends_on:
+      api: {condition: service_started}
+  beat:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    environment: *environment
+    command: [celery, -A, config, beat, --loglevel=WARNING, --schedule=/tmp/commerceos-celerybeat]
+    depends_on:
+      api: {condition: service_started}
+volumes:
+  postgres-data:
+  redis-data:

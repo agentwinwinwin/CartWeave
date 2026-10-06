@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "CommerceOS · CJ 行情读取",
+  "version": "1.0.2",
+  "minimum_chrome_version": "120",
+  "description": "在你正常登录的 Chrome 中读取 CJ 两组类目前十，仅传回本机 CommerceOS。",
+  "permissions": ["storage", "scripting", "alarms"],
+  "host_permissions": ["https://www.cjdropshipping.com/*", "http://127.0.0.1:8010/*"],
+  "background": {"service_worker": "background.js"},
+  "action": {"default_popup": "popup.html", "default_title": "CommerceOS CJ 连接"}
+}

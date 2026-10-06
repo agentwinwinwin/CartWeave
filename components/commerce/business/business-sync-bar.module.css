@@ -1,0 +1,9 @@
+.sync { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 100%; }
+.controls { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.controls > button { min-height: 36px; }
+.controls select { width: min(260px, 100%); }
+.meta, .notice { color: var(--color-muted); font-size: 12px; line-height: 1.5; }
+.meta { font-variant-numeric: tabular-nums; }
+.notice { max-width: 360px; }
+.connection { color: var(--text-secondary); font-size: 13px; text-underline-offset: 4px; }
+@media (max-width: 760px) { .sync { align-items: flex-start; } .controls { justify-content: flex-start; } }

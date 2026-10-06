@@ -1,0 +1,16 @@
+.flow { min-width:0; margin-block:var(--space-4,16px); }
+.flow header p,.flow footer p { color:var(--color-muted); line-height:1.6; }
+.flow header small { color:var(--color-muted); }
+.nodes { list-style:none; padding:0; margin:20px 0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:24px; }
+.nodes li { min-width:0; position:relative; }
+.nodes li>div { height:100%; }
+.arrow { position:absolute; top:50%; right:-19px; color:var(--color-muted); }
+.detail { padding:16px; }
+.detail p { line-height:1.7; }
+.detail dl { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:12px 0 0; }
+.detail dt { color:var(--color-muted); font-size:12px; }
+.detail dd { margin:6px 0 0; overflow-wrap:anywhere; }
+.return { font-size:12px; color:var(--color-muted); }
+.flow footer { border-top:1px solid var(--color-line); padding-top:16px; }
+@media(max-width:1100px) { .nodes { grid-template-columns:1fr; gap:24px; } .arrow { top:auto; bottom:-22px; right:50%; transform:rotate(90deg); } }
+@media(max-width:760px) { .detail dl { grid-template-columns:1fr; } }

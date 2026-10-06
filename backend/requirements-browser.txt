@@ -1,0 +1,2 @@
+# Optional desktop webpage collector, independent of Codex and model providers.
+playwright==1.63.0

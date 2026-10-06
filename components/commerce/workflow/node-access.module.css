@@ -1,0 +1,5 @@
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:var(--radius-sm);font-size:10px;font-weight:550;letter-spacing:0;line-height:1.2;white-space:nowrap;border:1px solid transparent}
+.fixed{background:var(--color-canvas);color:var(--color-muted);border-color:var(--color-line-soft)}
+.parameters{background:color-mix(in srgb,var(--color-workflow-parameter) 7%,var(--color-surface));color:var(--color-workflow-parameter);border-color:color-mix(in srgb,var(--color-workflow-parameter) 13%,transparent)}
+.skill{background:color-mix(in srgb,var(--color-blue) 7%,var(--color-surface));color:var(--color-blue);border-color:color-mix(in srgb,var(--color-blue) 13%,transparent)}
+.compact{padding:4px 6px;font-size:9px;gap:4px}.compact svg{width:11px;height:11px}

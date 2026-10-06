@@ -1,0 +1,408 @@
+{
+  "products": [
+    {
+      "id": "cj-1451047630602899456",
+      "name": "Demo Knitwear 1",
+      "category": "Woman Hats & Caps",
+      "department": "Hats",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "One Size": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-14449d51-7058-422c-a0f9-8ab6c2da0862",
+      "name": "Demo Knitwear 2",
+      "category": "Fedoras",
+      "department": "Hats",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "One Size": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-4709bdde-3d11-48dd-b8c6-1fd3b00a1175",
+      "name": "Demo Knitwear 3",
+      "category": "Woman Hats & Caps",
+      "department": "Hats",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "One Size": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-1696412057458978816",
+      "name": "Demo Knitwear 4",
+      "category": "Baseball Caps",
+      "department": "Hats",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "M": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-11648ed0-19c0-4154-919a-a916be6b0913",
+      "name": "Demo Knitwear 5",
+      "category": "Suits & Sets",
+      "department": "Clothing",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "M": 20,
+        "S": 20,
+        "L": 20,
+        "XL": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-1414482203366264832",
+      "name": "Demo Knitwear 6",
+      "category": "Woman Slippers",
+      "department": "Shoes",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "One Size": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-1670651327053041664",
+      "name": "Demo Knitwear 7",
+      "category": "Fashion Backpacks",
+      "department": "Bags",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "One Size": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-1581944399960363008",
+      "name": "Demo Knitwear 8",
+      "category": "Woman Hats & Caps",
+      "department": "Hats",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "One Size": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-1392719718007312384",
+      "name": "Demo Knitwear 9",
+      "category": "Evening Dresses",
+      "department": "Clothing",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "S": 20,
+        "M": 20,
+        "L": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-1378972971057680384",
+      "name": "Demo Knitwear 10",
+      "category": "Casual Shoes",
+      "department": "Shoes",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "39": 20,
+        "40": 20,
+        "41": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-1568079604899270656",
+      "name": "Demo Knitwear 11",
+      "category": "Shoulder Bags",
+      "department": "Bags",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "One Size": 20
+      },
+      "gallery": []
+    },
+    {
+      "id": "cj-1723542060768178176",
+      "name": "Demo Knitwear 12",
+      "category": "Woman Hats & Caps",
+      "department": "Hats",
+      "price": 28,
+      "image": "/test-store/crownley/products/demo.svg",
+      "color": "Sage",
+      "stock": 20,
+      "status": "Active",
+      "badge": "Demo",
+      "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+      "sizeStock": {
+        "One Size": 20
+      },
+      "gallery": []
+    }
+  ],
+  "featured": [
+    {
+      "product": {
+        "id": "cj-1392719718007312384",
+        "name": "Demo Knitwear 13",
+        "category": "Evening Dresses",
+        "department": "Clothing",
+        "price": 28,
+        "image": "/test-store/crownley/products/demo.svg",
+        "color": "Sage",
+        "stock": 20,
+        "status": "Active",
+        "badge": "Demo",
+        "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+        "sizeStock": {
+          "S": 20,
+          "M": 20,
+          "L": 20
+        },
+        "gallery": []
+      },
+      "title": "Synthetic demo selection",
+      "score": 50,
+      "listedCount": 0,
+      "reason": "Synthetic fixture, not demand evidence"
+    },
+    {
+      "product": {
+        "id": "cj-1378972971057680384",
+        "name": "Demo Knitwear 14",
+        "category": "Casual Shoes",
+        "department": "Shoes",
+        "price": 28,
+        "image": "/test-store/crownley/products/demo.svg",
+        "color": "Sage",
+        "stock": 20,
+        "status": "Active",
+        "badge": "Demo",
+        "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+        "sizeStock": {
+          "39": 20,
+          "40": 20,
+          "41": 20
+        },
+        "gallery": []
+      },
+      "title": "Synthetic demo selection",
+      "score": 50,
+      "listedCount": 0,
+      "reason": "Synthetic fixture, not demand evidence"
+    },
+    {
+      "product": {
+        "id": "cj-1568079604899270656",
+        "name": "Demo Knitwear 15",
+        "category": "Shoulder Bags",
+        "department": "Bags",
+        "price": 28,
+        "image": "/test-store/crownley/products/demo.svg",
+        "color": "Sage",
+        "stock": 20,
+        "status": "Active",
+        "badge": "Demo",
+        "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+        "sizeStock": {
+          "One Size": 20
+        },
+        "gallery": []
+      },
+      "title": "Synthetic demo selection",
+      "score": 50,
+      "listedCount": 0,
+      "reason": "Synthetic fixture, not demand evidence"
+    },
+    {
+      "product": {
+        "id": "cj-4709bdde-3d11-48dd-b8c6-1fd3b00a1175",
+        "name": "Demo Knitwear 16",
+        "category": "Woman Hats & Caps",
+        "department": "Hats",
+        "price": 28,
+        "image": "/test-store/crownley/products/demo.svg",
+        "color": "Sage",
+        "stock": 20,
+        "status": "Active",
+        "badge": "Demo",
+        "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+        "sizeStock": {
+          "One Size": 20
+        },
+        "gallery": []
+      },
+      "title": "Synthetic demo selection",
+      "score": 50,
+      "listedCount": 0,
+      "reason": "Synthetic fixture, not demand evidence"
+    },
+    {
+      "product": {
+        "id": "cj-11648ed0-19c0-4154-919a-a916be6b0913",
+        "name": "Demo Knitwear 17",
+        "category": "Suits & Sets",
+        "department": "Clothing",
+        "price": 28,
+        "image": "/test-store/crownley/products/demo.svg",
+        "color": "Sage",
+        "stock": 20,
+        "status": "Active",
+        "badge": "Demo",
+        "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+        "sizeStock": {
+          "M": 20,
+          "S": 20,
+          "L": 20,
+          "XL": 20
+        },
+        "gallery": []
+      },
+      "title": "Synthetic demo selection",
+      "score": 50,
+      "listedCount": 0,
+      "reason": "Synthetic fixture, not demand evidence"
+    },
+    {
+      "product": {
+        "id": "cj-1670651327053041664",
+        "name": "Demo Knitwear 18",
+        "category": "Fashion Backpacks",
+        "department": "Bags",
+        "price": 28,
+        "image": "/test-store/crownley/products/demo.svg",
+        "color": "Sage",
+        "stock": 20,
+        "status": "Active",
+        "badge": "Demo",
+        "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+        "sizeStock": {
+          "One Size": 20
+        },
+        "gallery": []
+      },
+      "title": "Synthetic demo selection",
+      "score": 50,
+      "listedCount": 0,
+      "reason": "Synthetic fixture, not demand evidence"
+    },
+    {
+      "product": {
+        "id": "cj-1581944399960363008",
+        "name": "Demo Knitwear 19",
+        "category": "Woman Hats & Caps",
+        "department": "Hats",
+        "price": 28,
+        "image": "/test-store/crownley/products/demo.svg",
+        "color": "Sage",
+        "stock": 20,
+        "status": "Active",
+        "badge": "Demo",
+        "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+        "sizeStock": {
+          "One Size": 20
+        },
+        "gallery": []
+      },
+      "title": "Synthetic demo selection",
+      "score": 50,
+      "listedCount": 0,
+      "reason": "Synthetic fixture, not demand evidence"
+    },
+    {
+      "product": {
+        "id": "cj-1414482203366264832",
+        "name": "Demo Knitwear 20",
+        "category": "Woman Slippers",
+        "department": "Shoes",
+        "price": 28,
+        "image": "/test-store/crownley/products/demo.svg",
+        "color": "Sage",
+        "stock": 20,
+        "status": "Active",
+        "badge": "Demo",
+        "description": "Synthetic catalog fixture for integration testing. Not live supplier data.",
+        "sizeStock": {
+          "One Size": 20
+        },
+        "gallery": []
+      },
+      "title": "Synthetic demo selection",
+      "score": 50,
+      "listedCount": 0,
+      "reason": "Synthetic fixture, not demand evidence"
+    }
+  ]
+}

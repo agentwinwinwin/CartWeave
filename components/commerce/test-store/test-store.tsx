@@ -1,0 +1,44 @@
+"use client";
+import { useRef, useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { advanceTestOrder, createTestOrder, testProducts, type TestOrder, type TestOrderAction } from "@/lib/test-store";
+import styles from "./test-store.module.css";
+
+const money=(cents:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(cents/100);
+const stageNames={pending:"等待测试付款",paid:"已模拟付款 · 等待授权",authorized:"已授权 · 等待提交履约",dispatch_requested:"已提交模拟履约 · 等待出库",shipped:"已模拟出库 · 等待通知",notified:"已记录模拟邮件 · 等待签收",delivered:"测试交付完成",cancelled:"测试订单已取消"};
+const nextActions:Partial<Record<TestOrder["status"],{action:TestOrderAction;label:string}>>={pending:{action:"pay",label:"模拟付款成功"},paid:{action:"authorize",label:"确认测试履约权限"},authorized:{action:"dispatch",label:"模拟提交 CJ 履约"},dispatch_requested:{action:"ship",label:"模拟收到出库事件"},shipped:{action:"notify",label:"记录模拟发货邮件"},notified:{action:"deliver",label:"模拟收到签收事件"}};
+function ProductArt({art}:{art:string}){return <div aria-hidden="true" className={`${styles.art} ${styles[art]}`}><div className={styles.object}/><div className={styles.shadow}/></div>;}
+
+export function TestStore(){
+  const [products,setProducts]=useState(()=>structuredClone(testProducts));
+  const [cart,setCart]=useState<Record<string,number>>({});
+  const [order,setOrder]=useState<TestOrder|null>(null);
+  const [view,setView]=useState<"shop"|"checkout"|"order">("shop");
+  const [notice,setNotice]=useState("");
+  const [detail,setDetail]=useState<string|null>(null);
+  const cartDialog=useRef<HTMLDialogElement>(null);
+  const count=Object.values(cart).reduce((sum,q)=>sum+q,0);
+  const subtotal=products.reduce((sum,p)=>sum+p.priceCents*(cart[p.id]??0),0);
+  const add=(id:string)=>{const p=products.find(p=>p.id===id);if(!p?.published||(cart[id]??0)>=p.stock){setNotice("已达到测试库存上限。");return;}setCart(c=>({...c,[id]:(c[id]??0)+1}));setNotice("已加入购物车。");};
+  const checkout=()=>{cartDialog.current?.close();if(order&&!["delivered","cancelled"].includes(order.status)){setView("order");setNotice("请先完成或取消本轮测试订单，再创建下一轮订单。");return;}setView("checkout");setNotice("");};
+  const placeOrder=()=>{try{const next=createTestOrder(products,cart);setProducts(ps=>ps.map(p=>({...p,stock:p.stock-(cart[p.id]??0)})));setCart({});setOrder(next);setView("order");setNotice("测试订单已创建，尚未付款。");}catch(e){setNotice(e instanceof Error?e.message:"创建失败");}};
+  const advance=(action:TestOrderAction)=>{if(!order)return;try{const next=advanceTestOrder(order,action);if(action==="cancel")setProducts(ps=>ps.map(p=>({...p,stock:p.stock+(order.items.find(i=>i.productId===p.id)?.quantity??0)})));setOrder(next);setNotice("模拟事件已记录，没有执行外部操作。");}catch(e){setNotice(e instanceof Error?e.message:"操作失败");}};
+  const exportEvents=()=>{if(!order)return;const url=URL.createObjectURL(new Blob([JSON.stringify({mode:"local-simulation",store:"FORM-test",order},null,2)],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download=`${order.id}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+  return <div className={styles.store}>
+    <div className={styles.sandbox}>本地测试店铺 · 示例商品不是 CJ 实采数据 · 不收款、不发货、不发送邮件</div>
+    <header className={styles.header}><Link href="/test-store" className={styles.logo} onClick={e=>{e.preventDefault();setView("shop");}}>FORM<span>EVERYDAY OBJECTS</span></Link><nav aria-label="店铺导航"><Button variant="ghost" onClick={()=>setView("shop")}>Collection</Button>{order&&<Button variant="ghost" onClick={()=>setView("order")}>测试订单</Button>}<Link href="/workflow/builder">运营工作台 ↗</Link></nav><Button onClick={()=>cartDialog.current?.showModal()} aria-label={`购物车 ${count} 件`}>Bag <span>{count}</span></Button></header>
+    <main className={styles.main}>
+      {view==="shop"&&<>
+        <section className={styles.hero}><div><span className={styles.eyebrow}>LESS, BUT BETTER. / COLLECTION 01</span><h1>给日常，<br/>留一点美好。</h1><p>简单的形状，恰好的功能。<br/>为每一天挑选值得留下的物件。</p><a href="#collection" className="ui-button ui-button--primary">探索系列 ↓</a><small>演示市场 US / USD · 虚构商品与定价</small></div><div className={styles.heroArt}><ProductArt art="lamp"/><span>01 / HALO<br/>A quieter kind of light.</span></div></section>
+        <section id="collection"><div className={styles.sectionHead}><div><span className={styles.eyebrow}>THE COLLECTION</span><h2>少一点，刚刚好。</h2></div><p>{products.filter(p=>p.published).length} 件已上架测试商品</p></div><div className={styles.grid}>{products.filter(p=>p.published).map(p=><Card key={p.id} className={styles.product}><Button variant="ghost" className={styles.artButton} aria-label={`查看${p.title}`} onClick={()=>setDetail(detail===p.id?null:p.id)}><ProductArt art={p.art}/></Button><div className={styles.productInfo}><span className={styles.eyebrow}>FORM / {p.art.toUpperCase()}</span><div><h3>{p.title}</h3><b>{money(p.priceCents)}</b></div><p>{p.description}</p>{detail===p.id&&<p>示例规格：标准款 · 测试库存 {p.stock} 件。素材为前端绘制，不是实际商品照片。</p>}<Button disabled={!p.stock} onClick={()=>add(p.id)}>{p.stock?"加入购物车 +":"测试库存已售罄"}</Button></div></Card>)}</div></section>
+      </>}
+      {view==="checkout"&&<section className={styles.checkout}><span className={styles.eyebrow}>TEST CHECKOUT</span><h1>确认你的测试订单。</h1><div className={styles.checkoutGrid}><Card><h2>固定测试收货信息</h2><p>Demo Customer<br/>demo@example.invalid<br/>测试地址 · United States</p><p>不采集真实姓名、地址或信用卡。此版本仅使用测试身份。</p><h3>测试配送</h3><p>模拟运费 $0.00，模拟税费 $0.00，不是真实 CJ 报价。</p></Card><Card><h2>订单摘要</h2>{products.filter(p=>cart[p.id]).map(p=><p key={p.id}>{p.title} × {cart[p.id]} <b>{money(p.priceCents*cart[p.id])}</b></p>)}<hr/><p>合计 <b>{money(subtotal)}</b></p><Button variant="primary" disabled={!count} onClick={placeOrder}>创建测试订单（不扣款）</Button><Button variant="ghost" onClick={()=>setView("shop")}>返回选购</Button></Card></div></section>}
+      {view==="order"&&order&&<section className={styles.checkout}><span className={styles.eyebrow}>TEST ORDER / {order.id}</span><h1>{stageNames[order.status]}</h1><div className={styles.checkoutGrid}><Card><h2>测试订单</h2>{order.items.map(i=><p key={i.productId}>{i.title} × {i.quantity} <b>{money(i.unitPriceCents*i.quantity)}</b></p>)}<p>总额 <b>{money(order.totalCents)}</b></p><p>只有手动触发下一事件才推进；等待出库和签收不会自动放行。</p>{nextActions[order.status]&&<Button variant="primary" onClick={()=>advance(nextActions[order.status]!.action)}>{nextActions[order.status]!.label}</Button>}{order.status==="pending"&&<Button onClick={()=>advance("cancel")}>取消未付款测试订单</Button>}{["shipped","notified","delivered"].includes(order.status)&&<p>模拟运单：TEST-TRACKING-001（不可用于真实查询）</p>}{["notified","delivered"].includes(order.status)&&<div className={styles.mail}><b>模拟邮件预览 · 未发送</b><p>To: demo@example.invalid<br/>Subject: Your test order is on its way<br/>订单 {order.id} 已模拟出库。</p></div>}</Card><Card><h2>本轮事件记录</h2><ol className={styles.timeline}>{order.events.map((e,i)=><li key={i}><code>{e.type}</code><small>{new Date(e.occurredAt).toLocaleTimeString()}</small></li>)}</ol><Button onClick={exportEvents}>导出测试事件 JSON</Button><p>事件仅保留在当前页面内存，尚未投递到工作流执行引擎。</p></Card></div></section>}
+      <p role="status" className={styles.notice}>{notice}</p>
+      <details className={styles.lab}><summary>运营测试台 / 商品上架与测试边界</summary><p>商品采集和内容生产尚未执行。下列草稿是固定测试夹具；发布只改变本页状态，不调用渠道 API。可从这里开始测试“上架 → 购物车 → 下单 → 付款 → 履约 → 通知 → 签收”。</p><div className={styles.labRows}>{products.map(p=><div key={p.id}><span>{p.title}<small>{p.published?"已模拟上架":"测试草稿"} · 库存 {p.stock}</small></span><Button disabled={p.published} onClick={()=>{setProducts(ps=>ps.map(item=>item.id===p.id?{...item,published:true}:item));setNotice(`${p.title} 已模拟上架。`);}}>模拟上架 {p.title}</Button></div>)}</div><p>本页与工作流画布尚未互相订阅事件；后端接入后用渠道适配器发布商品并接收真实订单事件，不将浏览器点击当作付款或发货证据。</p></details>
+    </main><footer className={styles.siteFooter}><strong>FORM.</strong><span>Thoughtful objects. Everyday living.</span><span>LOCAL TEST STORE / NOT A LIVE SHOP</span></footer>
+    <dialog ref={cartDialog} className={styles.cart} aria-labelledby="cart-title" onClick={e=>{if(e.target===e.currentTarget)cartDialog.current?.close();}}><header><h2 id="cart-title">购物车 / Bag</h2><Button variant="ghost" aria-label="关闭购物车" onClick={()=>cartDialog.current?.close()}>×</Button></header>{!count?<p>购物车还是空的。</p>:products.filter(p=>cart[p.id]).map(p=><div className={styles.cartRow} key={p.id}><div><b>{p.title}</b><p>{money(p.priceCents)} / 件</p></div><div><Button compact aria-label={`减少${p.title}`} onClick={()=>setCart(c=>{const next={...c};if(next[p.id]>1)next[p.id]--;else delete next[p.id];return next;})}>−</Button><span>{cart[p.id]}</span><Button compact disabled={cart[p.id]>=p.stock} aria-label={`增加${p.title}`} onClick={()=>add(p.id)}>+</Button></div></div>)}<p>合计 <b>{money(subtotal)}</b></p><Button variant="primary" disabled={!count} onClick={checkout}>前往测试结账 →</Button><p>模拟配送与税费均为零，不代表真实报价。</p></dialog>
+  </div>;
+}
