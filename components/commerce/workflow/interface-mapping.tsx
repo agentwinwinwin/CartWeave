@@ -10,18 +10,17 @@ import {Badge} from "@/components/ui/badge";
 import {backendRequest} from "@/lib/workflow/backend-client";
 import {NodeAccess} from "./node-access";
 import {integrationRules} from "@/lib/skills/personal";
+import {ModelConnectionForm} from './model-connection-form';
+import type {ModelConnection} from '@/lib/workflow/model-connections';
 import styles from "./interface-mapping.module.css";
 
-type Model={id:string;name:string;protocol:string;base_url:string;model_id:string;has_key:boolean};
+type Model=ModelConnection;
 type Row={action?:string;direction:string;fixed_path:string;external_path:string;meaning:string;conversion:string;evidence:string;status:string};
 type Answer={summary?:string;mappings?:Row[];questions?:string[];limitations?:string[]};
 export type MappingSession={id:string;channel:string;action:string;revision:number;busy:boolean;contract:unknown;messages:{role:string;content:string;model?:string;provider?:string;connection_id?:string}[];result:Answer};
 type Session=MappingSession;
-const protocols=[['openai-completions','OpenAI 兼容 · DeepSeek / OpenRouter / 本地模型'],['openai-responses','OpenAI Responses'],['anthropic-messages','Anthropic / Claude'],['google-generative-ai','Google / Gemini']];
-const defaults:Record<string,string>={'openai-completions':'https://api.openai.com/v1','openai-responses':'https://api.openai.com/v1','anthropic-messages':'https://api.anthropic.com/v1','google-generative-ai':'https://generativelanguage.googleapis.com/v1beta'};
 const actions=[['store.package','完整店铺接口包'],['listing.publish','上架商品'],['listing.validate','检查商品'],['listing.wait','查询可售结果'],['publication.lookup','查询发布回执'],['listing.unpublish','下架商品'],['listing.status','查询商品状态'],['orders.read','读取订单'],['customers.read','读取客户'],['finance.read','读取账目']];
 const labels:Record<string,string>={direct:'直接对应',convert:'需要转换',question:'待你确认',unsupported:'暂不支持'};
-const emptyModel={name:'',protocol:'openai-completions',base_url:defaults['openai-completions'],model_id:'',api_key:''};
 const mappingRule=integrationRules.find(rule=>rule.configure==='mapping')!;
 
 export function InterfaceMapping({embedded=false,initialChannel,initialSessionRef,onApplyDraft}:{embedded?:boolean;initialChannel?:string;initialSessionRef?:string;onApplyDraft?:(session:MappingSession)=>void}={}){
@@ -29,7 +28,7 @@ export function InterfaceMapping({embedded=false,initialChannel,initialSessionRe
   const [sessions,setSessions]=useState<Session[]>([]),[session,setSession]=useState<Session|null>(null);
   const [channel,setChannel]=useState(''),[action,setAction]=useState('store.package'),[message,setMessage]=useState('');
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[showModels,setShowModels]=useState(false);
-  const [modelForm,setModelForm]=useState(emptyModel),[editingModel,setEditingModel]=useState('');
+  const [editingModel,setEditingModel]=useState<Model|undefined>();
   useEffect(()=>{
     let active=true;
     const params=new URLSearchParams(location.search),scope=initialChannel||params.get('channel')||'我的店铺';
@@ -43,8 +42,8 @@ export function InterfaceMapping({embedded=false,initialChannel,initialSessionRe
     return()=>{active=false;};
   },[initialChannel,initialSessionRef]);
   async function act(fn:()=>Promise<void>){setBusy(true);setNotice('');try{await fn();}catch(e){setNotice(e instanceof Error?e.message:'操作失败');}finally{setBusy(false);}}
-  function edit(model?:Model){setEditingModel(model?.id??'');setModelForm(model?{name:model.name,protocol:model.protocol,base_url:model.base_url,model_id:model.model_id,api_key:''}:emptyModel);setShowModels(true);}
-  async function saveModel(){const saved=await backendRequest<Model>(editingModel?`model-connections/${editingModel}`:'model-connections',editingModel?'PUT':'POST',modelForm);setModels(await backendRequest<Model[]>('model-connections'));setModelId(saved.id);setModelForm(emptyModel);setEditingModel('');setShowModels(false);setNotice('模型配置已保存，密钥由后端加密保管。');}
+  function edit(model?:Model){setEditingModel(model);setShowModels(true);}
+  function saveModel(saved:Model){setModels(rows=>[saved,...rows.filter(m=>m.id!==saved.id)]);setModelId(saved.id);setEditingModel(undefined);setShowModels(false);setNotice('模型配置已保存，密钥由后端加密保管；尚未调用模型或完成映射。');}
   async function send(){
     let current=session;
     if(!current){current=await backendRequest<Session>('mappings','POST',{channel,action});setSession(current);setSessions(rows=>[current!,...rows]);}
@@ -60,12 +59,12 @@ export function InterfaceMapping({embedded=false,initialChannel,initialSessionRe
         <div className={styles.notice}>{embedded?<p>当前渠道：{channel} · 系统确定接入范围，无需选择动作。</p>:<label className={styles.composer}>销售渠道<Input aria-label="映射销售渠道" value={channel} onChange={e=>setChannel(e.target.value)} disabled={busy||!!session}/></label>}<p>新建分析覆盖完整接口包：商品检查、上架、回执查询、可售确认、下架、状态查询，以及订单、客户、账目读取。</p><p className={styles.muted}>测试站接口包 1.4.0 共九项实际 HTTP 契约。账目映射收款、退款与成本，不直接映射模型计算的利润；付款、采购、发货、消息和广告执行仍未支持。</p>{session&&<p>当前记录沿用创建时的契约快照；旧记录不会自动新增字段。需要九项新版范围，请点击“新建映射”。</p>}{session&&session.action!=='store.package'&&<p>这是历史单动作记录，不能代表完整接口包。新建分析将使用系统完整范围。</p>}</div>
         <div className={styles.fields}><label>使用的大模型<SelectField aria-label="映射大模型" value={modelId} onChange={e=>setModelId(e.target.value)} disabled={busy}><option value="">请选择或添加模型</option>{models.map(m=><option key={m.id} value={m.id}>{m.name} · {m.model_id}</option>)}</SelectField></label><div className={styles.actions}><Button onClick={()=>edit()} disabled={busy}>＋ 添加模型</Button>{modelId&&<Button onClick={()=>edit(models.find(m=>m.id===modelId))} disabled={busy}>编辑模型</Button>}</div></div>
         <p className={styles.muted}>可在对话中切换模型，沿用同一份接口资料与映射记录。</p>
-        {showModels&&<form className={styles.modelForm} onSubmit={e=>{e.preventDefault();void act(saveModel);}}><h3>{editingModel?'编辑模型':'添加模型'}</h3><div className={styles.fields}><label>显示名称<Input required maxLength={80} value={modelForm.name} onChange={e=>setModelForm(v=>({...v,name:e.target.value}))}/></label><label>调用协议<SelectField aria-label="调用协议" value={modelForm.protocol} onChange={e=>setModelForm(v=>({...v,protocol:e.target.value,base_url:defaults[e.target.value]}))}>{protocols.map(([id,name])=><option key={id} value={id}>{name}</option>)}</SelectField></label><label>API 基础地址<Input required type="url" value={modelForm.base_url} onChange={e=>setModelForm(v=>({...v,base_url:e.target.value}))}/></label><label>模型 ID<Input required placeholder="填写服务商提供的模型 ID" value={modelForm.model_id} onChange={e=>setModelForm(v=>({...v,model_id:e.target.value}))}/></label><label>API Key<Input type="password" autoComplete="new-password" placeholder={editingModel?'留空保留现有密钥':'本地无鉴权模型可留空'} value={modelForm.api_key} onChange={e=>setModelForm(v=>({...v,api_key:e.target.value}))}/></label></div><p className={styles.muted}>本地模型可填 http://localhost:11434/v1 等兼容地址。密钥不存浏览器。</p><div className={styles.actions}><Button variant="primary" type="submit" disabled={busy}>保存模型</Button><Button type="button" onClick={()=>{setShowModels(false);setModelForm(emptyModel);setEditingModel('');}}>取消</Button></div></form>}
+        {showModels&&<ModelConnectionForm key={editingModel?.id??'new'} model={editingModel} onSaved={saveModel} onCancel={()=>{setShowModels(false);setEditingModel(undefined);}}/>}
       </Card>
       <Card className={styles.panel}><h2>与模型确认接口</h2><p className={styles.muted}>粘贴 API 文档、参数说明和脱敏响应；资料会发给你选择的模型服务。后续直接回答模型的问题即可。</p>
         {session?.messages.map((m,i)=><article key={i} className={styles.message}><strong>{m.role==='user'?'你':`${m.provider} · ${m.model}`}</strong>{m.role==='user'?<p>{m.content}</p>:<p>{(()=>{try{return (JSON.parse(m.content) as Answer).summary;}catch{return m.content;}})()}</p>}</article>)}
         <label className={styles.composer}>接口资料 / 补充说明<textarea className="ui-input" aria-label="接口资料 / 补充说明" rows={7} maxLength={30000} value={message} onChange={e=>setMessage(e.target.value)} placeholder="例如：这是商品创建 API，price 单位是美分，库存字段表示可售数量……" disabled={busy}/></label>
-        <div className={styles.actions}><Button variant="primary" disabled={busy||!modelId||!message.trim()||!channel.trim()} onClick={()=>void act(send)}>{busy?'模型处理中…':session?'继续确认映射':'开始映射'}</Button>{session&&<Button disabled={busy} onClick={()=>{setSession(null);setAction('store.package');setMessage('');}}>新建映射</Button>}</div>
+        <div className={styles.actions}><Button variant="primary" disabled={busy||showModels||!modelId||!message.trim()||!channel.trim()} onClick={()=>void act(send)}>{busy?'模型处理中…':session?'继续确认映射':'开始映射'}</Button>{session&&<Button disabled={busy} onClick={()=>{setSession(null);setAction('store.package');setMessage('');}}>新建映射</Button>}</div>
         {onApplyDraft&&<div className={styles.notice}><p>关联到当前节点仅保存记录引用和修订号，不是“映射已通过”，也不会自动绑定发布 Skill。模型配置与对话单独保存在后端。</p><Button disabled={busy||!!session?.busy||!session?.result.summary||session.revision<2||session.channel!==initialChannel||!['store.package','listing.publish'].includes(session.action)} onClick={()=>{if(session)onApplyDraft(session);}}>关联映射草案到节点</Button></div>}
         {notice&&<p role="status" className={styles.notice}>{notice}</p>}
       </Card>

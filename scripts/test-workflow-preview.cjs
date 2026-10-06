@@ -251,7 +251,7 @@ const contracts = load(path.join(root, "lib/workflow/contract-schemas.ts"));
 const client = load(path.join(root, "lib/workflow/client.ts"));
 const graph = load(path.join(root, "components/commerce/workflow/graph.ts"));
 const {mockInterface}=require('./fixtures/publication-interfaces.cjs');
-const {applyInstalledStore,inheritedPublishingPlan,refreshCompatiblePublicationPackage}=load(path.join(root,'lib/workflow/store-publishing.ts'));
+const {applyInstalledStore,applyConnectedStore,reuseSavedStoreConnection,inheritedPublishingPlan,refreshCompatiblePublicationPackage}=load(path.join(root,'lib/workflow/store-publishing.ts'));
 test('explicit new freeze refreshes compatible package metadata without changing operational configuration',()=>{
  const actions=['listing.validate','listing.publish','listing.wait'];
  const store={id:'11111111-1111-1111-1111-111111111111',name:'Local store',adapter:'test-store.v1',channel:'test-store',verified:true,active:true,configuration_version:1,capabilities:actions};
@@ -296,6 +296,17 @@ test('one verified installed store configures all three publication actions with
   assert.throws(()=>applyInstalledStore(doc,store,malformed));
   const missing=structuredClone(extended);missing.customSkills=missing.customSkills.filter(m=>m.id!=='installed.test-store.v1.listing.publish');
   assert.throws(()=>inheritedPublishingPlan(missing));
+  const support=fixtureWorkflow('support'),before=structuredClone(support);
+  const reused=reuseSavedStoreConnection(support,[next]);
+  assert.equal(reused.environment.storeRef,store.id);
+  assert.deepEqual(reused.nodes,support.nodes,'reuse is not a fake customer connector');
+  assert.deepEqual(support,before,'reuse never rewrites its source');
+  assert.equal(applyConnectedStore(support,store,pkg).environment.storeRef,store.id);
+  const ambiguous=structuredClone(next);ambiguous.environment.storeRef='other';ambiguous.nodes.find(n=>n.definitionId==='listing.map').binding.parameters.mappingStoreRef='other';
+  assert.equal(reuseSavedStoreConnection(support,[next,ambiguous]),support);
+  const explicit={...support,environment:{...support.environment,storeRef:'keep'}};
+  assert.equal(reuseSavedStoreConnection(explicit,[next]),explicit);
+  assert.equal(reuseSavedStoreConnection(fixtureWorkflow('support','amazon'),[next]).environment.storeRef,undefined);
 });
 
 test('mapping stays between final approval and publishing without generic publishing parameters',()=>{
@@ -377,6 +388,11 @@ test("rounded routes retain card ports and share length-based transmission timin
     assert.ok(route.length > 0 && Number.isFinite(route.length));
     assert.ok(!route.d.includes("NaN"));
     assert.ok(route.start.every(Number.isFinite) && route.end.every(Number.isFinite));
+    if(edge.kind==='forward'){
+      assert.equal(route.labelX,(route.start[0]+route.end[0])/2,'capsule sits on the connection midpoint');
+      assert.equal(route.labelY,(route.start[1]+route.end[1])/2);
+      if(route.start[1]!==route.end[1])assert.ok(route.d.includes(' C'),'cross-row wires use smooth tangents');
+    }
     assert.ok(graph.transmissionDuration(flow, edge) >= 1050 && graph.transmissionDuration(flow, edge) <= 2400);
     if (edge.kind === "feedback" || edge.kind === "collaboration" && route.start[1] !== route.end[1]) assert.ok(route.d.includes("Q"));
   }
@@ -384,6 +400,22 @@ test("rounded routes retain card ports and share length-based transmission timin
   const short = edges.find(edge => edge.kind === "forward");
   const long = edges.find(edge => edge.kind === "feedback");
   assert.ok(graph.transmissionDuration(flow, long) > graph.transmissionDuration(flow, short));
+});
+
+test('customer service template keeps the old graph contracts and updates only explicitly requested default titles',()=>{
+  const draft=model.createWorkflow('support');
+  assert.equal(draft.title,'智能客服');
+  assert.equal(draft.nodes.length,7);
+  assert.equal(draft.nodes.find(n=>n.definitionId==='support.propose').title,'智能客服生成回复');
+  const old=structuredClone(draft);old.title='售后问题到解决';
+  old.nodes.find(n=>n.definitionId==='support.propose').title='形成处理方案';
+  old.nodes[0].title='My custom inbox';old.nodes[0].binding.parameters.custom='preserve';
+  const before=structuredClone(old),updated=model.updateCustomerSupportDraft(old);
+  assert.deepEqual(old,before);
+  assert.equal(updated.title,'智能客服');assert.equal(updated.id,old.id);
+  assert.equal(updated.nodes[0].title,'My custom inbox');
+  assert.deepEqual(updated.nodes.map(n=>n.binding),old.nodes.map(n=>n.binding));
+  assert.deepEqual(updated.edges,old.edges);
 });
 
 test("store connection inherits across actions but not across providers or channels", () => {

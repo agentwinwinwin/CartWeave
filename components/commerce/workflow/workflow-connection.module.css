@@ -1,7 +1,7 @@
 .connection{--beam-color:var(--color-focus);color:var(--color-subtle)}
-.track{fill:none;stroke:color-mix(in srgb,var(--color-muted) 30%,var(--color-line));stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:stroke .3s,opacity .3s}
-.feedback .track{stroke-dasharray:4 6;opacity:.48}
-.collaboration .track{stroke-dasharray:2 5;opacity:.45}
+.track{fill:none;stroke:var(--wire-gradient);stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round;transition:opacity .3s}
+.feedback .track{opacity:.75}
+.collaboration .track{opacity:.85}
 .completed:not(.active):not(.joint) .track{stroke:color-mix(in srgb,var(--color-green) 40%,var(--color-line))}
 .active,.joint{color:var(--beam-color)}
 .active .track,.joint .track{stroke:var(--beam-color);opacity:.32;stroke-dasharray:none}
@@ -20,6 +20,15 @@
 .port{fill:var(--color-surface);stroke:color-mix(in srgb,var(--color-muted) 42%,var(--color-line));stroke-width:1.4}
 .active .port,.joint .port{stroke:var(--beam-color);fill:color-mix(in srgb,var(--beam-color) 15%,var(--color-surface))}
 .label{font-size:9px;fill:var(--color-blue);paint-order:stroke;stroke:var(--color-canvas);stroke-width:5;stroke-linejoin:round}
+.transferLabel rect{fill:var(--color-surface);stroke:var(--color-line-soft);stroke-width:1;filter:drop-shadow(0 2px 3px #1823330a)}
+.transferLabel circle{fill:var(--wire-tint);opacity:.65}
+.transferLabel text{fill:var(--color-muted);font-size:9px;font-weight:500}
+.direction{fill:none;stroke:var(--color-subtle);stroke-width:1;stroke-linecap:round;stroke-linejoin:round}
+.active .transferLabel text,.joint .transferLabel text{fill:var(--beam-color)}
+.active .transferLabel circle,.joint .transferLabel circle{fill:var(--beam-color);opacity:1}
+.beam{stroke-width:1.8}.beamGlow{stroke-width:6;opacity:.22;filter:blur(3px)}.beamCore{stroke-width:.7}
+.railGlow{stroke-width:4;opacity:.06;filter:blur(3px)}
+.completed .port{stroke:var(--color-green);fill:var(--color-surface)}
 /* Keep the leading tip aligned with animateMotion: exactly 0 → 100. */
 @keyframes beamTravel{to{stroke-dashoffset:calc(var(--beam-tail) - 100)}}
 @keyframes railBreathe{0%,100%{opacity:.12}50%{opacity:.25}}

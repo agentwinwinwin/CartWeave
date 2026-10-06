@@ -2,6 +2,8 @@
 
 Django + DRF 模块化单体，Pydantic 定义运行与店铺 HTTP 契约。当前可执行主线为 CJ 选品到本地测试站发布与可售确认；不支持任意 DAG，也未接入 Amazon/Shopify 真实执行器。
 
+真实对话模型调用统一经过 Pi 官方开源 harness，密钥仍由 Django 加密管理与 transport 使用，不交给 Node 或前端。模型运行需 Node >=22.19 与根目录 npm 依赖；`npm run desktop` 自动设置路径，单独 Django 配置 `COMMERCE_HARNESS_NODE`。运营助手、客服回复草稿和商品图方案使用独立模型策略，不改原确定性算法或发布执行器。商品图文件生成、查单和消息发送工具尚未接入，详见根目录 `docs/pi-harness.md`。
+
 ## 初始化与启动
 
 完整步骤见根目录 README。建议 Node.js 22 和 Python 3.12；安装 requirements.lock，生成新的本机配置、迁移数据库并运行 bootstrap_local。不要复制其他工作区的数据库或密钥。

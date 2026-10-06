@@ -150,6 +150,13 @@ const { chromium } = require("./browser-runtime.cjs");
   // Processing highlights only the current node; it must not emit outgoing packets.
   const runningCard=page.locator('[data-run-state="running"]');
   assert.equal(await runningCard.count(),1);
+  assert(await page.locator('[data-edge-id]').first().evaluate(el=>{
+    const paint=getComputedStyle(el).getPropertyValue('--wire-gradient').trim();
+    const id=paint.slice(5,-1);
+    return !!el.ownerSVGElement.querySelector(`[id="${id}"]`);
+  }),'each wire references a real, URL-safe gradient');
+  assert.equal(await runningCard.locator('span[class*="nodeIcon"]').count(),1,'shared nodes retain a compact semantic icon');
+  assert.equal(await runningCard.evaluate(el=>getComputedStyle(el,'::after').pointerEvents),'none','visual backplates never intercept configuration clicks');
   const trace=runningCard.locator('rect[class*="frameTrace"]');
   assert.notEqual(await trace.evaluate(el=>getComputedStyle(el).animationName),'none');
   assert.equal(await page.locator('[data-edge-id][data-active="true"]').count(),0);
@@ -166,6 +173,7 @@ const { chromium } = require("./browser-runtime.cjs");
   const activeEdge=page.locator('[data-edge-id][data-active="true"]');
   await activeEdge.waitFor();
   assert.equal(await activeEdge.getAttribute('data-edge-id'),incoming.id);
+  assert.equal(await activeEdge.locator('text').filter({hasText:'传递中'}).count(),1,'handoff label follows the actual replayed edge');
   const beam=activeEdge.locator('path[class*="beam_"]').first();
   const offset=await beam.evaluate(el=>getComputedStyle(el).strokeDashoffset);
   await page.waitForFunction(({initial})=>{

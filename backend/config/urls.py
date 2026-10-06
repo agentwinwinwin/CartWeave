@@ -4,6 +4,7 @@ from apps.teststore import views as store
 from apps.connections import views as connections
 from apps.runtime import selection_views
 from apps.connections import mapping_views
+from apps.agents import views as agents
 from apps.api.product_views import Products, ProductUnpublish
 from apps.workflows.design_views import Designs, DesignFreeze, ReleaseDetail
 from apps.workflows.release_views import Releases, ReleaseLifecycle
@@ -14,6 +15,9 @@ from apps.commerce.views import BusinessList, BusinessSync
 from apps.connections.intelligence_views import CJIntelligence, CJIntelligenceLogin, CJIntelligenceCollect, CJIntelligencePlans, CJIntelligencePlan, CJChromePairing, CJChromeBridge
 
 urlpatterns = [
+    path('api/v1/agent-skills', agents.AgentSkills.as_view()),
+    path('api/v1/agent-sessions', agents.Sessions.as_view()),
+    path('api/v1/agent-sessions/<uuid:pk>', agents.SessionDetail.as_view()),
     path('api/v1/business/<str:kind>', BusinessList.as_view()),
     path('api/v1/stores/<uuid:pk>/sync/<str:kind>', BusinessSync.as_view()),
     path('api/v1/connections/cj/intelligence', CJIntelligence.as_view()),

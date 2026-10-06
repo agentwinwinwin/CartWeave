@@ -12,6 +12,7 @@ import {storeActionIds} from "@/lib/workflow/universal";
 import {creationBrief,draftKey,isSkillDraft,parseSkillDrafts,publishingDraft,registeredSkillKind,skillKinds,type RegisteredSkill,type SkillDraft,type SkillKind} from "@/lib/skills/personal";
 import styles from "./personal-skills.module.css";
 import {IntegrationSkillEntries} from "./integration-skill-entries";
+import {RuntimeSkills} from "../agents/runtime-skills";
 
 const statusNames={approved:"已审核版本",pending:"待审核",revoked:"已停用"};
 function Dialog({title,children,onClose}:{title:string;children:ReactNode;onClose:()=>void}){
@@ -76,10 +77,11 @@ export function PersonalSkills(){
   const shownRegistered=registered.filter(s=>(kind==="all"||kind===registeredSkillKind(s))&&match(s.key,s.version,s.manifest?.name??"",s.manifest?.description??"",s.handler==="content.editorial.v1"?"原素材与商品文案整理 内容制作":""));
   return <>
     <PageHeader title="技能工作区" description="接入规则、执行版本与制作草稿，在同一处管理。" actions={<><Link className="ui-button" href="/workflow/builder">返回工作流</Link><Button variant="primary" onClick={create} disabled={!storageReady}>＋ 新建制作草稿</Button></>}/>
-    <nav className={styles.tabs} aria-label="技能管理分区">{[["rules","接入规则 · 2"],["registered",`已注册版本${!loading&&!error?` · ${registered.length}`:""}`],["drafts",`制作草稿 · ${drafts.length}`]].map(([id,title])=><Button key={id} variant="ghost" aria-pressed={tab===id} onClick={()=>setTab(id)}>{title}</Button>)}</nav>
-    <div className={styles.toolbar}><Input aria-label="搜索我的技能" value={query} onChange={e=>setQuery(e.target.value)} placeholder={tab==="rules"?"搜索 API 生成、接口字段映射…":"搜索名称、用途或版本…"}/>{tab!=="rules"&&<SelectField aria-label="技能分类" value={kind} onChange={e=>setKind(e.target.value)}><option value="all">全部职责</option>{Object.entries(skillKinds).map(([id,item])=><option key={id} value={id}>{item.name}</option>)}</SelectField>}</div>
+    <nav className={styles.tabs} aria-label="技能管理分区">{[["rules","接入规则 · 2"],["registered",`已注册版本${!loading&&!error?` · ${registered.length}`:""}`],["runtime","运行时模型 Skill"],["drafts",`制作草稿 · ${drafts.length}`]].map(([id,title])=><Button key={id} variant="ghost" aria-pressed={tab===id} onClick={()=>setTab(id)}>{title}</Button>)}</nav>
+    {tab!=="runtime"&&<div className={styles.toolbar}><Input aria-label="搜索我的技能" value={query} onChange={e=>setQuery(e.target.value)} placeholder={tab==="rules"?"搜索 API 生成、接口字段映射…":"搜索名称、用途或版本…"}/>{tab!=="rules"&&<SelectField aria-label="技能分类" value={kind} onChange={e=>setKind(e.target.value)}><option value="all">全部职责</option>{Object.entries(skillKinds).map(([id,item])=><option key={id} value={id}>{item.name}</option>)}</SelectField>}</div>}
     {notice&&<p className={styles.note} role="status">{notice}</p>}
     {tab==="rules"&&<IntegrationSkillEntries query={query} onCreate={()=>setEditing(publishingDraft("development","我的店铺",true))}/>}
+    {tab==="runtime"&&<RuntimeSkills/>}
     <section hidden={tab!=="registered"} aria-labelledby="registered-skills"><div className={styles.heading}><h2 id="registered-skills">后端已登记版本 {!loading&&!error&&`· ${registered.length}`}</h2><Button compact disabled={loading} onClick={refresh}>{loading?"读取中…":"刷新版本"}</Button></div>
       <p className={styles.muted}>版本来自当前工作区后端。已审核不等于正在运行；是否能执行仍由后端检查代码摘要、版本和工作流绑定。</p>
       {error?<div className={styles.note} role="alert">后端版本暂不可用，不展示虚构的已安装技能。{error}</div>:loading?<p role="status">正在读取登记版本…</p>:!shownRegistered.length?<div className={styles.empty}>没有符合当前筛选的登记版本。</div>:<div className={styles.grid}>{shownRegistered.map(s=><Card key={s.id} className={styles.card}>

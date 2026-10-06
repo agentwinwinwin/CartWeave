@@ -1,7 +1,8 @@
-"""Small protocol adapters; model selection is independent of mapping policy."""
+"""Private provider transport for apps.agents.harness, not an agent entry point."""
 import ipaddress
 import json
 import socket
+import time
 from urllib.parse import urlsplit, quote
 import httpx
 from django.conf import settings
@@ -26,6 +27,12 @@ def validate_endpoint(url):
 
 
 def complete(connection, system, messages):
+    """Compatibility entry: existing mapping callers now execute through Pi."""
+    from apps.agents.harness import complete as run
+    return run(connection, system, messages, purpose='mapping')
+
+
+def provider_complete(connection, system, messages, *, purpose='mapping'):
     base = validate_endpoint(connection.base_url)
     key = credential(connection) if connection.credential_ciphertext else ''
     headers = {'Content-Type': 'application/json'}
@@ -40,7 +47,7 @@ def complete(connection, system, messages):
         path = f'/models/{quote(model, safe="")}:generateContent'
         payload = {'systemInstruction':{'parts':[{'text':system}]},
             'contents':[{'role':'model' if m['role']=='assistant' else 'user', 'parts':[{'text':m['content']}]} for m in messages],
-            'generationConfig':{'maxOutputTokens':4096, 'responseMimeType':'application/json'}}
+            'generationConfig':{'maxOutputTokens':4096, **({'responseMimeType':'application/json'} if purpose!='assistant' else {})}}
     elif protocol == 'openai-responses':
         if key: headers['Authorization'] = f'Bearer {key}'
         path = '/responses'
@@ -50,12 +57,15 @@ def complete(connection, system, messages):
         path = '/chat/completions'
         payload = {'model':model, 'messages':[{'role':'system','content':system}, *messages], 'max_tokens':4096}
     try:
+        started = time.monotonic()
         with httpx.Client(timeout=55, follow_redirects=False, trust_env=False) as client:
             with client.stream('POST', base+path, headers=headers, json=payload) as response:
                 if response.status_code >= 300:
                     raise RuleError(f'模型服务返回 HTTP {response.status_code}；请检查模型 ID、地址、额度和密钥。')
                 parts, size = [], 0
                 for part in response.iter_bytes():
+                    if time.monotonic() - started > 55:
+                        raise RuleError('模型响应读取超时；本轮未保存，不自动重试。')
                     size += len(part)
                     if size > 2_000_000: raise RuleError('模型响应过大，请缩小本轮资料。')
                     parts.append(part)
@@ -68,7 +78,7 @@ def complete(connection, system, messages):
             text = ''.join(x.get('text','') for o in result['output'] for x in o.get('content',[]) if x.get('type')=='output_text')
         else:
             text = result['choices'][0]['message']['content']
-        if not isinstance(text,str) or not text.strip(): raise RuleError('模型没有返回映射内容。')
+        if not isinstance(text,str) or not text.strip(): raise RuleError('模型没有返回内容。')
         # A model must never echo the configured credential into persisted output.
         if key: text = text.replace(key, '[REDACTED]')
         raw_usage = result.get('usage', result.get('usageMetadata', {}))

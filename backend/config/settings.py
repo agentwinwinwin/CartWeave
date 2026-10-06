@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions',
     'django.contrib.messages', 'django.contrib.staticfiles', 'rest_framework',
     'apps.identity', 'apps.connections', 'apps.skills', 'apps.workflows',
-    'apps.runtime', 'apps.approvals', 'apps.listings', 'apps.audit', 'apps.teststore', 'apps.finance', 'apps.commerce',
+    'apps.runtime', 'apps.approvals', 'apps.listings', 'apps.audit', 'apps.teststore', 'apps.finance', 'apps.commerce', 'apps.agents',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware',

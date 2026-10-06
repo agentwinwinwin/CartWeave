@@ -116,13 +116,13 @@ export const nodeDefinitions: NodeDefinition[] = [
   d("insight.authorize", "确认调整边界", "approval", "OptimizationProposal@1", "AuthorizedOptimization@1", "核对目标计划、变化幅度与预算上限。", { provides: ["optimization.authorized"] }),
   d("insight.apply", "应用批准的调整", "action", "AuthorizedOptimization@1", "OptimizationResult@1", "通过适配器执行并记录实际结果。", { requires: ["optimization.authorized"], allowedEffects: ["read", "remote_write", "spend"] }),
   d("insight.end", "结束本轮复盘", "end", "OptimizationResult@1", "OptimizationResult@1", "结束当前任务，下一轮独立触发。"),
-  d("support.start", "接收并合并问题", "trigger", "SupportEvent@1", "SupportQuery@1", "按订单和问题去重合并。"),
-  d("support.context", "收集订单与政策证据", "action", "SupportQuery@1", "SupportContext@1", "读取物流、支付、历史处理和当前允许动作。"),
-  d("support.propose", "形成处理方案", "ai", "SupportContext@1", "SupportProposal@1", "人工、规则脚本或模型均可提供答复与处理建议。"),
-  d("support.authorize", "确认处理权限", "approval", "SupportProposal@1", "AuthorizedResolution@1", "校验当前允许的消息、退款或补发范围。", { provides: ["resolution.authorized"] }),
-  d("support.execute", "执行批准的方案", "action", "AuthorizedResolution@1", "ResolutionReceipt@1", "使用平台允许的动作，资金与消息必须独立核验授权。", { requires: ["resolution.authorized"], allowedEffects: ["read", "remote_write", "spend", "message"] }),
-  d("support.wait", "等待处理确认", "wait", "ResolutionReceipt@1", "ResolutionResult@1", "未确认退款或补发时保持工单开放。", { event: "处理动作确认成功" }),
-  d("support.end", "记录问题解决", "end", "ResolutionResult@1", "ResolutionResult@1", "保留结果与证据，已发送答复不重复通知。"),
+  d("support.start", "接收客户消息", "trigger", "SupportEvent@1", "SupportQuery@1", "接收售前、订单查询或售后咨询，按会话与消息 ID 去重；渠道收信待接入。"),
+  d("support.context", "收集客服所需资料", "action", "SupportQuery@1", "SupportContext@1", "根据问题读取商品、订单、物流与店铺政策；当前模型执行由用户提供已确认资料，不自动查询。"),
+  d("support.propose", "智能客服生成回复", "ai", "SupportContext@1", "SupportProposal@1", "在节点中选择模型，通过 Pi harness 执行客服 Skill，输出回复草稿、依据、追问与转人工标记；不发送消息。"),
+  d("support.authorize", "检查回复与转人工", "approval", "SupportProposal@1", "AuthorizedResolution@1", "检查事实与政策；退款、补发、争议或缺少证据转人工，模型不能承诺资金动作。", { provides: ["resolution.authorized"] }),
+  d("support.execute", "发送已确认的答复", "action", "AuthorizedResolution@1", "ResolutionReceipt@1", "向原咨询渠道发送确认后的答复，使用消息幂等键；当前发送连接器未接入，不自动退款或补发。", { requires: ["resolution.authorized"], allowedEffects: ["read", "remote_write", "spend", "message"] }),
+  d("support.wait", "核对消息送达", "wait", "ResolutionReceipt@1", "ResolutionResult@1", "查询原消息的发送结果；超时或未知时不能重复发送，也不把提交回执当作送达。", { event: "消息送达或需人工核对" }),
+  d("support.end", "归档客服会话", "end", "ResolutionResult@1", "ResolutionResult@1", "记录回复、证据与渠道结果；仍需人工处理的会话保持待处理，不伪装问题已解决。"),
   d("extension.rule", "附加规则检查", "rule", "$context", "$context", "检查当前上下文，不创造付款、授权或出库事实。", { passthrough: true }),
   d("extension.review", "附加人工复核", "approval", "$context", "$context", "追加审阅意见，不替代动作专用授权。", { passthrough: true }),
   d("extension.skill", "附加 Skill 处理", "ai", "$context", "$context", "读取上下文并追加建议，业务事实保持不变。", { passthrough: true, allowedEffects: ["read", "artifact"] }),
@@ -134,8 +134,15 @@ export const workflowTemplates: WorkflowTemplate[] = [
   { id: "campaign", title: "推广与首次投放", description: "复用已确认商品图，制作推广文案与创意，按渠道审核与授权完成首次投放。", trigger: "手动推广任务", cadence: "按需启动", definitions: ["campaign.start", "campaign.creative", "campaign.authorize", "campaign.submit", "campaign.wait", "campaign.activate", "campaign.end"] },
   { id: "fulfillment", title: "订单到交付", description: "同一业务主线按责任方选择代发、仓库或平台观察实现。", trigger: "订单状态事件", cadence: "事件驱动", definitions: ["order.start", "order.eligible", "order.authorize", "order.dispatch", "order.wait", "order.record", "order.delivery", "order.end"] },
   { id: "optimize", title: "经营复盘与调整", description: "数据、分析、授权、执行分别具有清晰契约。", trigger: "定时经营检查", cadence: "定时运行", definitions: ["insight.start", "insight.check", "insight.propose", "insight.authorize", "insight.apply", "insight.end"] },
-  { id: "support", title: "售后问题到解决", description: "复用证据和建议契约，平台决定允许的处理动作。", trigger: "客户问题或物流异常", cadence: "事件驱动", definitions: ["support.start", "support.context", "support.propose", "support.authorize", "support.execute", "support.wait", "support.end"] },
+  { id: "support", title: "智能客服", description: "接收咨询、整理资料、模型生成回复、检查与转人工，再发送并核对送达。模型节点已可执行；消息渠道待接入。", trigger: "售前咨询 / 订单查询 / 售后消息", cadence: "事件驱动", definitions: ["support.start", "support.context", "support.propose", "support.authorize", "support.execute", "support.wait", "support.end"] },
 ];
+
+/** Explicit presentation update; never rewrites bindings, edges, IDs or frozen runs. */
+export function updateCustomerSupportDraft(document:WorkflowDocument):WorkflowDocument {
+  if(document.templateId!=='support')return document;
+  const legacy:Record<string,string>={'support.start':'接收并合并问题','support.context':'收集订单与政策证据','support.propose':'形成处理方案','support.authorize':'确认处理权限','support.execute':'执行批准的方案','support.wait':'等待处理确认','support.end':'记录问题解决'};
+  return {...document,title:document.title==='售后问题到解决'?'智能客服':document.title,nodes:document.nodes.map(node=>node.title===legacy[node.definitionId]?{...node,title:getDefinition(node.definitionId)!.title}:node)};
+}
 
 const parameters: Record<string, ParameterDefinition> = { market: { type: "string", label: "目标市场", default: "US" }, timeout: { type: "number", label: "工具请求超时（秒）", default: 60, minimum: 1, maximum: 600 } };
 function parametersFor(definition: NodeDefinition, runtime: SkillRuntime): Record<string, ParameterDefinition> {

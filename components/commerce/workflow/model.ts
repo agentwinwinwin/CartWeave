@@ -86,7 +86,7 @@ export const workflows: Workflow[] = [
     n("guard","确认策略边界","approval","小幅调整按授权规则，大幅变更需要人工确认。","OptimizationProposal","ApprovedOptimization",["检查商家额度、单次变化幅度与冷却期","预算提升和策略变化按权限审批","确认本轮受影响的具体计划 ID"],{alternate:{label:"不批准",result:"保留建议，维持当前计划"}}),
     n("apply","执行并写回复盘","action","幂等应用批准的变化，记录结果并结束本轮。","ApprovedOptimization","OptimizationResult",["更新或暂停指定广告，记录前后值","核对渠道返回状态；失败进入修复队列","下次由调度器重新触发，不在画布无限循环"]),
   ])},
-  {id:"support",number:"05",title:"售后问题到解决",subtitle:"客户消息或物流异常，沿同一工单推进到解决。",trigger:"客户咨询 / 物流异常 / 退款申请",cadence:"事件驱动",scope:"一个工单及关联订单",result:"答复、退款或补发处理结果",note:"普通查询可以自动答复。退款、补发和争议按证据与权限处理，不让模型直接操作资金。",nodes:sequence([
+  {id:"support",number:"05",title:"智能客服",subtitle:"客户咨询、资料核对、模型回复与转人工，沿同一会话推进。",trigger:"售前咨询 / 订单查询 / 售后消息",cadence:"事件驱动",scope:"一个客户会话及必要的业务资料",result:"回复草稿与人工处理建议",note:"客服模型在设计器节点中通过 Pi 执行；本页仅演示，不实际发送消息、退款或补发。",nodes:sequence([
     n("case","接收与合并工单","trigger","按订单聚合客户消息和物流异常，避免重复处理。","SupportEvent","SupportTicket",["识别客户身份与关联订单","合并同一问题的重复请求","取消订单事件同步挂起未完成采购"]),
     n("context","补全订单与物流证据","action","读取支付、包裹、历史沟通与售后政策。","SupportTicket","SupportContext",["按最小权限获取订单与物流","确认是否已退款、补发或进入争议","记录政策版本与时间线"]),
     n("resolve","理解诉求并拟定方案","ai","生成可解释的答复草稿及处理建议。","SupportContext","SupportProposal",["分类查询、退货、丢件、取消和争议","依据真实证据编写答复","缺少证据先追问，不能编造物流承诺"],{skill:"support-resolution"}),

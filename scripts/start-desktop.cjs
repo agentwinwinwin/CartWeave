@@ -7,7 +7,7 @@ if(!existsSync(path.join(root,"backend/.local/config.json"))||!existsSync(path.j
   console.error("请先按 backend/README.md 初始化本机工作区，并执行 npm run build。");
   process.exit(1);
 }
-const env={...process.env,COMMERCE_ENV:"local",COMMERCE_DESKTOP:"1"};
+const env={...process.env,COMMERCE_ENV:"local",COMMERCE_DESKTOP:"1",COMMERCE_HARNESS_NODE:process.execPath};
 const python=process.env.WORKFLOW_PYTHON||path.join(root,"server/.venv/bin/python");
 const children=[];
 let closing=false;

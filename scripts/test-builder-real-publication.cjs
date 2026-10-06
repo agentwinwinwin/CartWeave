@@ -1,21 +1,21 @@
 // Creates ONE real local test-store product via the node's existing seven-step runner.
 // Explicitly approves synthetic test evidence twice. No purchasing/payment/shipping.
 const assert=require('node:assert/strict'),path=require('node:path');
-const { chromium } = require("./browser-runtime.cjs");
+const {chromium}=require(process.env.CODEX_NODE_MODULES?path.join(process.env.CODEX_NODE_MODULES,'playwright'):'playwright');
 (async()=>{
  const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
  try{
   const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://localhost:3000/workflow/builder');
-  await page.getByRole('button',{name:/准备渠道发布数据/}).first().click();
-  const mapping=page.getByRole('dialog',{name:'接口字段映射节点'});
+  await page.getByRole('button',{name:'配置店铺接入 ↗',exact:true}).click();
+  const mapping=page.getByRole('dialog',{name:'店铺接入',exact:true});
   await mapping.getByRole('button',{name:'保存店铺与接口包配置',exact:true}).waitFor();
   await page.waitForFunction(()=>{const b=[...document.querySelectorAll('dialog button')].find(b=>b.textContent==='保存店铺与接口包配置');return b&&!b.disabled;});
   assert.equal(await mapping.getByLabel('模型 ID',{exact:true}).count(),0,'Installed adapter requires no model');
   const storeId=await mapping.getByLabel('真实发布店铺').inputValue();assert(storeId);
   await mapping.getByRole('button',{name:'保存店铺与接口包配置',exact:true}).click();
   await page.getByRole('button',{name:'检查配置',exact:true}).click();
-  await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='▶ 演示流程');return b&&!b.disabled;});
+  await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='演示流程');return b&&!b.disabled;});
   await page.getByRole('button',{name:/提交渠道发布/}).first().click();
   const publisher=page.getByRole('dialog',{name:'提交渠道发布节点'});
   await publisher.getByText('旧七步测试站主线联调（不是本图运行）',{exact:true}).click();

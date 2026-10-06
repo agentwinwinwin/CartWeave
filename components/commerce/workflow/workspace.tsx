@@ -35,7 +35,7 @@ export function WorkflowCanvas({flow,run,onSelect,configs,selectedId,executionMo
   const edges=edgesFor(flow);
   const collaboration=run?.phase==="collaborating"?edges.find(edge=>edge.id===run.relationId):undefined;
   const activeEdge=run?.phase==="edge"?(run.edgeId??`${run.nodeId}:${flow.nodes.find(node=>node.id===run.nodeId)?.next}`):null;
-  return <div ref={host} className={styles.canvasViewport}>
+  return <div ref={host} className={styles.canvasViewport} data-execution-mode={executionMode}>
     <div className={styles.canvasFit} style={{height:height*scale}}><div className={styles.canvas} style={{height,transform:`scale(${scale})`}}>
       <svg className={styles.connections} viewBox={`0 0 1000 ${height}`} width="1000" height={height} aria-hidden="true"><defs><marker id={markerId} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0 L7 3.5 L0 7" fill="none" stroke="currentColor"/></marker></defs>
         {edges.map(edge=>{
@@ -57,6 +57,7 @@ export function WorkflowCanvas({flow,run,onSelect,configs,selectedId,executionMo
         return <WorkflowCard key={node.id} order={index} selected={selectedId===node.id} position={{left:p.x,top:p.y}}
           eyebrow={access?`步骤 ${String(index+1).padStart(2,"0")}`:`${String(index+1).padStart(2,"0")} / ${kindLabels[node.kind]}`}
           editMode={access?.mode} accessLabel={access?.implementationKind==="adapter"?"接口接入":undefined} title={node.title} description={node.description} detail={active&&run.message?run.message:detail} label={label}
+          icon={node.kind==="ai"?"sparkles":node.kind==="approval"?"check":node.kind==="wait"?"clock":node.kind==="end"?"check":access?.implementationKind==="adapter"?"connect":node.kind==="trigger"?"workflow":node.kind==="rule"?"info":"box"}
           meta={executionMode?"查看运行记录":node.kind==="approval"&&node.approvalEnabled===false?"人工审核已关闭":access?.implementationKind==="adapter"?"查看接口动作":access?.mode==="fixed"?"查看规则":access?.mode==="parameters"?"调整参数":access?.mode==="skill"?"配置 Skill":"查看步骤"}
           accent={access?undefined:node.kind==="ai"?"violet":undefined} state={state} onClick={()=>onSelect(node)}/>;
       })}

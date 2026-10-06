@@ -38,3 +38,12 @@
 .canvasToolbar>div{min-width:0}
 :global([data-executing=true]) .environmentBar,:global([data-executing=true]) .controlsGuide,:global([data-executing=true]) .channelNotice,:global([data-executing=true]) .documentDetails,:global([data-executing=true]) .canvasFooter{display:none}
 .executionWorkspace[data-executing=true] :global(.page-actions){display:none}
+.catalogPage :global(.page-header){margin-bottom:32px;align-items:center}
+.catalogPage :global(.page-header p){max-width:540px}
+.catalogToolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:18px;margin-bottom:24px;border-bottom:1px solid var(--color-line-soft)}
+.catalogSearch{display:flex;align-items:center;gap:8px;color:var(--color-muted);width:240px;border:1px solid var(--color-line);background:var(--color-surface);border-radius:var(--radius-sm);padding:0 12px}
+.catalogSearch input{border:0;background:transparent;width:100%;min-width:0;height:38px;box-shadow:none;padding:8px 0;font-size:13px}
+.catalogSearch:focus-within{outline:2px solid var(--color-blue);outline-offset:2px}
+.catalogSearch input:focus{outline:none}
+.catalogEmpty{padding:48px 16px;text-align:center;font-size:14px;color:var(--color-muted)}
+@media(max-width:760px){.catalogToolbar{flex-wrap:wrap;gap:14px;margin-bottom:18px}.catalogSearch{width:100%}.catalogPage :global(.page-header){margin-bottom:22px}}

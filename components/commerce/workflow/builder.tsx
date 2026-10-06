@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Icon, type IconName } from "@/components/ui/icon";
 import { SelectField } from "@/components/ui/select-field";
 import { PageHeader } from "@/components/app/page-header";
 import { WorkflowCanvas, WorkflowWorkspace } from "./workspace";
@@ -14,9 +15,11 @@ import { NodeInspector } from "./node-inspector";
 import { ChannelManager } from "./channel-manager";
 import { StoreConnection } from "./store-connection";
 import {MappingNodeWindow} from "./mapping-node-window";
+import {ModelConnectionsWindow} from './model-connections-window';
 import {PublishingNodeWindow} from './publishing-node-window';
+import {CustomerSupportWindow} from './customer-support-window';
 import {LiveWorkflow} from './live-workflow';
-import {addIntelligenceNode} from '@/lib/workflow/universal';
+import {addIntelligenceNode,updateCustomerSupportDraft} from '@/lib/workflow/universal';
 import {BackendRequestError,backendRequest} from '@/lib/workflow/backend-client';
 import {bindDefaultRuntimeSkills,needsDefaultRuntimeSkills,applySelectionBasis} from '@/lib/workflow/default-runtime-skills';
 import type {RegisteredSkill} from '@/lib/skills/personal';
@@ -25,7 +28,7 @@ import { applyOperatorNodeSettings, canOperatorEditStructure, getNodeOperatorPol
 import { createWorkflow, defaultParameters, defaultSkillFor, forwardEdges, getDefinition, isChannelAdapter, nodeDefinitions, rebindChannel, toWorkflowPreview, workflowTemplates, type Channel, type Fulfillment, type NodeInstance, type PreviewValidationResult, type SkillManifest, type WorkflowDocument } from "@/lib/workflow/universal";
 import { parseWorkflowDocument, salesChannelDesignClient, workflowDesignClient } from "@/lib/workflow/client";
 import {savedDesigns,saveDesign,freezeDesign,type SavedDesign,type FrozenDesign} from '@/lib/workflow/saved-config';
-import {refreshCompatiblePublicationPackage,type PublishingStore,type PublishingPackage} from '@/lib/workflow/store-publishing';
+import {refreshCompatiblePublicationPackage,reuseSavedStoreConnection,type PublishingStore,type PublishingPackage} from '@/lib/workflow/store-publishing';
 import { builtinChannels, defaultChannelId, getChannels, resolveChannel, validateSalesChannel, type SalesChannelDefinition } from "@/lib/workflow/channels";
 import shared from "./workflow.module.css";
 import styles from "./builder.module.css";
@@ -39,6 +42,7 @@ const runtimes = [
   ["manual", "◎", "人工", "在流程中确认、选择或复核。"],
 ];
 const fulfillmentNames: Record<Fulfillment, string> = { supplier: "供应商代发", merchant: "自有仓 / 3PL", platform: "平台履约观察" };
+const workflowIcons:Record<string,IconName>={launch:'box','product-images':'sparkles',campaign:'arrow',fulfillment:'orders',optimize:'workflow',support:'chat'};
 
 /** A document's channel metadata wins over the local directory for this draft. */
 function combineChannelDirectory(documentChannels: SalesChannelDefinition[], localChannels: SalesChannelDefinition[]) {
@@ -52,8 +56,10 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
   const [document, setDocument] = useState<WorkflowDocument | null>(() => library ? null : createWorkflow("launch"));
   const [selected, setSelected] = useState<string | null>(null);
   const [mappingOpen,setMappingOpen]=useState(false);
+  const [modelConnectionsOpen,setModelConnectionsOpen]=useState(false);
   const [mappingNodeId,setMappingNodeId]=useState<string|null>(null);
   const [publishAdvanced,setPublishAdvanced]=useState(false);
+  const [supportAdvanced,setSupportAdvanced]=useState(false);
   useEffect(()=>{
     const url=new URL(window.location.href);
     if(url.searchParams.get('configure')!=='mapping')return;
@@ -69,6 +75,7 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
   const [blockedNode,setBlockedNode]=useState<string|null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState("flows");
+  const [flowQuery,setFlowQuery]=useState("");
   const [technicalView, setTechnicalView] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [addDefinition, setAddDefinition] = useState("extension.review");
@@ -141,6 +148,9 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
         // Reload exactly what was saved; upgrades are explicit editing actions.
         setDocument(row.document);
         setMessage(`已恢复后端保存配置 · 保存版本 ${row.revision}。`);
+      }else if(requested&&workflowTemplates.some(t=>t.id===requested)){
+        const fresh=createWorkflow(requested);
+        setDocument(reuseSavedStoreConnection(fresh,rows.map(row=>row.document)));
       }else if(!library&&!requested){
         const legacy=await workflowDesignClient.load();
         if(active&&legacy){setDocument(legacy);setMessage('已恢复浏览器旧草稿；请保存配置后运行。');}
@@ -173,7 +183,7 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
     if(library){router.push(`/workflow/builder?template=${encodeURIComponent(id)}`);return;}
     setFrozenConfig(null);
     const saved=Object.values(savedRows.current).find(row=>row.document.templateId===id);
-    const next=saved?.document??createWorkflow(id, document?.environment.channel ?? defaultChannelId, document?.environment.fulfillment ?? "supplier", document?.customChannels ?? channelDirectory);
+    const next=saved?.document??reuseSavedStoreConnection(createWorkflow(id, document?.environment.channel ?? defaultChannelId, document?.environment.fulfillment ?? "supplier", document?.customChannels ?? channelDirectory),Object.values(savedRows.current).map(row=>row.document));
     if(next.id!==document?.id){setRunningConfig(null);setRuntimeRunId(null);setRuntimeVisible(false);}
     serial.current++; setDocument(next);
     setSelected(null); setResult(null); setPreview(false); setMessage(saved?`已打开保存配置 · 保存版本 ${saved.revision}。`:""); setCatalogOpen(false); setRelationsOpen(false);
@@ -195,7 +205,7 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
         const [stores,catalog]=await Promise.all([backendRequest<PublishingStore[]>('stores'),backendRequest<{packages:PublishingPackage[]}>('integration-packages')]);
         if(current!==serial.current)throw Error('读取接口包时配置已变化，请重新冻结。');
         const store=stores.find(s=>s.id===plan.mappingStoreRef),pkg=catalog.packages.find(p=>p.package===plan.mappingPlanRef);
-        if(!store||!pkg)throw Error('原店铺或接口包不可用，请在准备节点确认。');
+        if(!store||!pkg)throw Error('原店铺或接口包不可用，请在配置店铺接入确认。');
         snapshot=refreshCompatiblePublicationPackage(document,store,pkg);
       }
       const row=await save(snapshot);if(!row)return;saved=true;setBusy(true);
@@ -295,19 +305,18 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
     const end: NodeInstance = { id: `result-${crypto.randomUUID()}`, definitionId: "flow.end", title: "交付本次结果", binding: { skillId: skill?.id ?? "", skillVersion: skill?.version ?? "1.0.0", mode: "default", parameters: skill ? defaultParameters(skill) : {} } };
     reconnect([...document.nodes.slice(0, document.nodes.findIndex(n => n.id === instance.id) + 1), end]); setSelected(null);
   };
-  const editor = instance && document ? instance.definitionId==='listing.publish'&&!publishAdvanced?<PublishingNodeWindow document={document} onConfigure={()=>{setSelected(null);setMappingNodeId(document.nodes.find(n=>n.definitionId==='listing.map')?.id??null);setMappingOpen(true);}} onClose={()=>setSelected(null)}/>:<NodeInspector key={instance.id} editor={{ document, instance, onApply: applyNode, onConfigureBasis:configureSelectionBasis,onRegister: register, onConfigureStore: () => { setSelected(null); setStoreConnectionOpen(true); },
+  const editor = instance && document ? instance.definitionId==='support.propose'&&!supportAdvanced?<CustomerSupportWindow onClose={()=>setSelected(null)} onConfigure={()=>setSupportAdvanced(true)}/>:instance.definitionId==='listing.publish'&&!publishAdvanced?<PublishingNodeWindow document={document} onConfigure={()=>{setSelected(null);setMappingNodeId(document.nodes.find(n=>n.definitionId==='listing.map')?.id??null);setMappingOpen(true);}} onClose={()=>setSelected(null)}/>:<NodeInspector key={instance.id} editor={{ document, instance, onApply: applyNode, onConfigureBasis:configureSelectionBasis,onRegister: register, onConfigureStore: () => { setSelected(null); setStoreConnectionOpen(true); },
     onMove: structurallyEditable(instance) ? move : undefined,
     onEndHere: getNodeOperatorPolicy(instance.definitionId).mode === "skill" && structurallyEditable(instance) ? endHere : undefined,
     onRemove: document.nodes.length > 2 && structurallyEditable(instance) ? () => { reconnect(document.nodes.filter(n => n.id !== instance.id)); setSelected(null); } : undefined }} onClose={() => setSelected(null)} /> : null;
 
   if(configLoading)return <Card><p role="status">正在读取后端保存配置…</p></Card>;
-  if (!document) return <div className={shared.workspace}>
-    <PageHeader title="工作流" description="选品上线、商品图生成、推广与首次投放独立启动。点击流程继续编辑已保存配置；刷新目录不会自动进入流程。" actions={<Button onClick={restore}>继续最近编辑 ↗</Button>} />
-    <Card className={styles.libraryIntro}><div><span className={shared.eyebrow}>COMMERCE OPERATIONS</span><h2>经营策略可调整，执行规则有边界。</h2><p>商品图独立制作并确认；推广与首次投放保持一条完整业务链，引用已确认素材，不重复生图。</p><div className={styles.miniFlow}><span>商品图生成</span><i>→</i><span>确认素材包</span><i>→</i><span>推广与首次投放</span></div></div><div className={styles.libraryStats}><span><b>{String(workflowTemplates.length).padStart(2,'0')}</b>业务工作流</span><span><b>03</b>步骤编辑边界</span></div></Card>
-    <div className={shared.sectionHead}><nav className={shared.tabs} aria-label="工作流目录"><Button variant="ghost" aria-pressed={tab === "flows"} onClick={() => setTab("flows")}>业务流程</Button><Button variant="ghost" aria-pressed={tab === "skills"} onClick={() => setTab("skills")}>策略与工具</Button></nav><span>跨境电商通用 · 销售渠道可扩展</span></div>
-    {tab === "flows" ? <div className={shared.library}>{workflowTemplates.map((t, i) => <WorkflowCard key={t.id} eyebrow={`${String(i + 1).padStart(2, "0")} / ${t.cadence}`} title={t.title} description={t.description} detail={t.trigger} label="系统步骤 + 运营策略" meta={Object.values(savedRows.current).some(row=>row.document.templateId===t.id)?'已保存 · 继续编辑 ↗':`${t.definitions.length} 个步骤 ↗`} accent={i === 2 ? "green" : i === 1 ? "violet" : undefined} onClick={() => openTemplate(t.id)} />)}</div> : <div className={styles.runtimeGrid}>{runtimes.map(([runtime, symbol, name, description]) => <Card key={runtime}><span>{symbol}</span><h3>{name}</h3><p>{description}</p><Badge>{runtime}</Badge></Card>)}</div>}
-    <Card className={shared.skillIntro}><span className={shared.aiMark}>⋈</span><div><h3>接口与策略可以换，系统检查不能跳过。</h3><p>根据“系统固定”“可调参数”“可配置 Skill”标签查看规则或调整设置。渠道接口可配置，不代表可以删除授权和业务职责。</p></div><Button onClick={() => openTemplate("launch")}>开始设计 ↗</Button></Card>
-    <p className={styles.status} role="status">{message || "本地设计预览 · 尚未连接执行服务"}</p>
+  if (!document) return <div className={`${shared.workspace} ${styles.catalogPage}`}>
+    <PageHeader title="工作流" description="从业务目标出发，配置并运行你的流程。" actions={<><Button onClick={()=>setModelConnectionsOpen(true)}>添加大模型 API</Button><Button variant="primary" disabled={!Object.keys(savedRows.current).length} onClick={restore}>继续最近编辑 ↗</Button></>} />
+    <div className={styles.catalogToolbar}><nav className={shared.tabs} aria-label="工作流目录"><Button variant="ghost" aria-pressed={tab === "flows"} onClick={() => setTab("flows")}>业务流程</Button><Button variant="ghost" aria-pressed={tab === "skills"} onClick={() => setTab("skills")}>策略与工具</Button></nav>{tab==='flows'&&<label className={styles.catalogSearch}><Icon name="search" size={16}/><Input aria-label="搜索业务流程" placeholder="搜索流程" value={flowQuery} onChange={e=>setFlowQuery(e.target.value)}/></label>}</div>
+    {tab === "flows" ? <><div className={shared.library}>{workflowTemplates.filter(t=>`${t.title} ${t.description}`.includes(flowQuery.trim())).map(t=>{const saved=Object.values(savedRows.current).find(row=>row.document.templateId===t.id);return <WorkflowCard key={t.id} variant="catalog" icon={workflowIcons[t.id]??'workflow'} eyebrow={t.cadence} title={saved?.document.title??t.title} description={t.description} detail={t.trigger} label={saved?'已保存草稿':'未配置'} meta={`${saved?.document.nodes.length??createWorkflow(t.id).nodes.length} 个步骤 · ${saved?'继续编辑':'打开流程'}`} onClick={() => openTemplate(t.id)} />;})}</div>{!workflowTemplates.some(t=>`${t.title} ${t.description}`.includes(flowQuery.trim()))&&<p className={styles.catalogEmpty}>没有匹配的业务流程。<Button variant="ghost" onClick={()=>setFlowQuery('')}>清除搜索</Button></p>}</> : <div className={styles.runtimeGrid}>{runtimes.map(([runtime, symbol, name, description]) => <Card key={runtime}><span>{symbol}</span><h3>{name}</h3><p>{description}</p><Badge>{runtime}</Badge></Card>)}</div>}
+    {message&&<p className={styles.status} role="status">{message}</p>}
+    {modelConnectionsOpen&&<ModelConnectionsWindow onClose={()=>setModelConnectionsOpen(false)}/>}
   </div>;
 
   const flow = toWorkflowPreview(document);
@@ -317,17 +326,18 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
   const activeChannel = resolveChannel(channel, document.customChannels);
   const relationEdges = document.edges.filter(e => e.kind !== "forward");
   const mappingNode=document.nodes.find(n=>n.id===mappingNodeId&&n.definitionId==='listing.map')??document.nodes.find(n=>n.definitionId==='listing.map');
-  const inspectNode = (id:string) => {setPreview(false);setPublishAdvanced(false);if(document.nodes.find(n=>n.id===id)?.definitionId==='listing.map'){setSelected(null);setMappingNodeId(id);setMappingOpen(true);}else setSelected(id);};
+  const inspectNode = (id:string) => {setPreview(false);setPublishAdvanced(false);setSupportAdvanced(false);if(document.nodes.find(n=>n.id===id)?.definitionId==='listing.map'){setSelected(null);setMappingNodeId(id);setMappingOpen(true);}else setSelected(id);};
   if (preview && valid) return <div className={shared.workspace}><div className={styles.previewToolbar}><Button onClick={() => setPreview(false)}>← 返回设计</Button><span>配置预检通过 · r{document.revision}</span><Badge tone="warning">本地模拟</Badge></div><WorkflowWorkspace customFlow={flow} onInspect={node => inspectNode(node.id)} /></div>;
 
   return <div className={`${shared.workspace} ${styles.executionWorkspace}`} data-technical={technicalView} data-executing={!!runningConfig&&runtimeVisible}>
     <div className={styles.designBreadcrumb}>{library ? <Button variant="ghost" onClick={() => { setDocument(null); setSelected(null); }}>工作流</Button> : <Link href="/workflow">工作流</Link>}<span>/</span><span>{template?.title ?? "我的流程"}</span><Badge>设计草稿</Badge><span>在当前画布运行</span></div>
-    <PageHeader title={document.title} description="调整经营参数与策略；保存并冻结后运行，已有任务沿用原配置。" actions={<><Link className="ui-button ui-button--secondary" href="/test-store" target="_blank" rel="noopener noreferrer">打开测试独立站 ↗</Link><Button disabled={busy||configLoading} onClick={()=>void save()}>保存配置</Button><Button disabled={busy||configLoading} onClick={()=>void freezeSaved()}>校验并冻结</Button><Link className="ui-button ui-button--secondary" href="/schedules">定时运行 ↗</Link><Link className="ui-button ui-button--secondary" href="/workflow/releases">冻结版本 ↗</Link><Button onClick={exportDocument}>导出流程 ↗</Button></>} />
+    <PageHeader title={document.title} description="调整经营参数与策略；保存并冻结后运行，已有任务沿用原配置。" actions={<><Button onClick={()=>setModelConnectionsOpen(true)}>添加大模型 API</Button><Link className="ui-button ui-button--secondary" href="/test-store" target="_blank" rel="noopener noreferrer">打开测试独立站 ↗</Link><Button disabled={busy||configLoading} onClick={()=>void save()}>保存配置</Button><Button disabled={busy||configLoading} onClick={()=>void freezeSaved()}>校验并冻结</Button><Link className="ui-button ui-button--secondary" href="/schedules">定时运行 ↗</Link><Link className="ui-button ui-button--secondary" href="/workflow/releases">冻结版本 ↗</Link><Button onClick={exportDocument}>导出流程 ↗</Button></>} />
+    {document.templateId==='support'&&<Card className={styles.channelNotice}><div><strong>智能客服 · 模型回复已可执行</strong><p>点击“智能客服生成回复”选择模型并提供客户问题与已确认资料。当前保存客服回复草稿，不自动取订单、发送消息、退款或补发；完整七步调度尚未接入，不支持冻结定时执行。</p></div><Button onClick={()=>{const node=document.nodes.find(n=>n.definitionId==='support.propose');setSupportAdvanced(false);if(node)setSelected(node.id);}}>执行客服 Skill</Button>{JSON.stringify(updateCustomerSupportDraft(document))!==JSON.stringify(document)&&<Button onClick={()=>commit(updateCustomerSupportDraft(document),'已更新为智能客服展示；节点配置、连线与引用保留，请保存配置。')}>更新为智能客服流程</Button>}</Card>}
     {document.templateId==='launch'&&document.selectionStrategy&&!document.nodes.some(n=>n.definitionId==='market.intelligence')&&<Card className={styles.channelNotice}><div><strong>新增可选首节点 · CJ 市场类目排行</strong><p>采集销售与广告类目前十，确认供货类目后传给商品任务。默认关闭，保留全部现有参数，保存冻结后才影响新运行。</p></div><Button onClick={()=>commit(addIntelligenceNode(document),'行情首节点已加入，默认关闭；现有参数和已冻结运行不变。')}>添加行情首节点</Button></Card>}
     <Card className={styles.environmentBar}>
       <div><small>销售渠道</small><div className={styles.channelControl}><SelectField aria-label="销售渠道" value={channel} onChange={e => changeChannel(e.target.value)}>{channels.map(item => <option key={item.id} value={item.id}>{item.name}{item.adapterStatus === "draft" ? " · 待适配" : " · 示例"}</option>)}</SelectField><Button onClick={() => setChannelManagerOpen("add")}>＋ 添加渠道</Button></div></div>
       <label>履约责任<SelectField aria-label="履约责任" value={document.environment.fulfillment} onChange={e => changeChannel(channel, e.target.value as Fulfillment)}>{(activeChannel?.fulfillments ?? [document.environment.fulfillment]).map(mode => <option key={mode} value={mode}>{channel === "amazon" && mode === "platform" ? "平台履约观察 · FBA" : fulfillmentNames[mode]}</option>)}</SelectField></label>
-      <div className={styles.contextCopy}><div className={styles.connectionTitle}><strong>{document.environment.storeIntegration?.name ?? "尚未配置店铺接入"}</strong></div><small>{document.environment.storeIntegration ? `${document.environment.storeIntegration.actions.length} 项能力声明 · 尚未真实验收` : "一次接入，多节点自动继承"}</small><Button compact className={styles.connectionButton} onClick={() => setStoreConnectionOpen(true)}>配置店铺接入 ↗</Button></div>
+      <div className={styles.contextCopy}><div className={styles.connectionTitle}><strong>{document.environment.storeIntegration?.name ?? "尚未配置店铺接入"}</strong></div><small>{document.environment.storeIntegration ? "已绑定接口包引用 · 执行时核验" : "一次接入，多流程复用"}</small><Button compact className={styles.connectionButton} onClick={() => setStoreConnectionOpen(true)}>配置店铺接入 ↗</Button></div>
       <Badge tone={valid ? "success" : "neutral"}>{valid ? "配置预检通过" : "待检查"} · r{document.revision}</Badge>
     </Card>
     {activeChannel?.adapterStatus === "draft" && !document.environment.storeIntegration && <Card className={styles.channelNotice}><Badge tone="warning">渠道待适配</Badge><div><strong>{activeChannel.name} 已加入设计目录</strong><p>先完成店铺接入与接口验收，再执行渠道动作；当前声明不代表已获平台授权。</p></div><Button onClick={() => setChannelManagerOpen("existing")}>管理渠道 ↗</Button></Card>}
@@ -363,12 +373,13 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
     <details className={styles.documentDetails}><summary>流程文档与后端对接</summary><div><label>流程名称<Input aria-label="流程名称" value={document.title} onChange={e => commit({ ...document, title: e.target.value })} /></label><label>店铺连接引用<Input aria-label="店铺连接引用" placeholder="已验收后端店铺 UUID（不填写密钥）" value={document.environment.storeRef ?? ""} onChange={e => commit({ ...document, environment: { ...document.environment, storeRef: e.target.value } })} /></label><p>导出文档包含版本、自定义销售渠道、节点职责、Skill 绑定、参数、连接引用与连线。保存配置会写入后端；渠道目录仍为设计声明，真实运行依赖服务端受信注册表和已验收连接。</p><div><Button disabled={busy} onClick={restore}>载入后端配置</Button><Button onClick={() => fileInput.current?.click()}>导入流程 JSON</Button></div><pre>{JSON.stringify({ schemaVersion: document.schemaVersion, revision: document.revision, environment: document.environment, customChannels: document.customChannels ?? [], node: document.nodes[1] }, null, 2)}</pre></div></details>
     <input ref={fileInput} type="file" accept="application/json,.json" hidden aria-label="导入流程文件" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; try { if (file.size > 262144) throw new Error("流程文件不能超过 256KB。"); commit(parseWorkflowDocument(await file.text()), "流程文件已导入，请检查实现绑定。"); setSelected(null); } catch (error) { setMessage(error instanceof Error ? error.message : "文件无法读取。"); } finally { e.target.value = ""; } }} />
     {editor}
-    {mappingOpen&&<MappingNodeWindow channel={channel} document={document} onApplyInstalled={next=>{commit(next,'复用接口包已配置，渠道检查、发布与可售查询共用店铺；请重新检查流程。');setMappingOpen(false);}} sessionRef={mappingNode?.binding.parameters.mappingSessionRef as string|undefined} onApplyDraft={session=>{
+    {modelConnectionsOpen&&<ModelConnectionsWindow onClose={()=>setModelConnectionsOpen(false)}/>}
+    {mappingOpen&&<MappingNodeWindow channel={channel} document={document} onConfigureStore={()=>{setMappingOpen(false);setStoreConnectionOpen(true);}} sessionRef={mappingNode?.binding.parameters.mappingSessionRef as string|undefined} onApplyDraft={session=>{
       const node=mappingNode;
       if(!node){setMessage('当前草稿没有映射节点，请使用当前模板；未修改旧流程。');return;}
       applyNode({...node,binding:{...node.binding,parameters:{mappingMode:'analysis',mappingSessionRef:session.id,mappingSessionRevision:session.revision}}});setMappingOpen(false);
     }} onClose={()=>setMappingOpen(false)}/>}
-    {storeConnectionOpen && <StoreConnection environment={document.environment} onConfigureMapping={()=>{setStoreConnectionOpen(false);setMappingNodeId(document.nodes.find(n=>n.definitionId==='listing.map')?.id??null);setMappingOpen(true);}} onApply={environment => commit({ ...document, environment }, "店铺接入已应用到当前编辑；请保存配置。相关节点继承连接，设计声明不代表真实验收。")} onClose={() => setStoreConnectionOpen(false)} />}
+    {storeConnectionOpen && <StoreConnection environment={document.environment} document={document} onSaveInstalled={async next=>{const snapshot={...next,revision:document.revision+1};commit(snapshot);const row=await save(snapshot);if(!row)throw Error('店铺与接口包配置未保存，请检查页头错误；不会自动使用未保存配置。');setStoreConnectionOpen(false);}} onConfigureMapping={()=>{setStoreConnectionOpen(false);setMappingNodeId(document.nodes.find(n=>n.definitionId==='listing.map')?.id??null);setMappingOpen(true);}} onApply={environment => commit({ ...document, environment }, "开发声明已应用到当前编辑，不代表真实店铺接入；请保存配置。")} onClose={() => setStoreConnectionOpen(false)} />}
     {channelManagerOpen && <ChannelManager channels={channels} selectedId={channel} initialTab={channelManagerOpen} onSelect={id => changeChannel(id)} onAdd={addChannel} onClose={() => setChannelManagerOpen(null)} />}
   </div>;
 }

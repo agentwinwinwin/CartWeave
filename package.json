@@ -2,6 +2,7 @@
   "name": "cartweave",
   "version": "0.1.0",
   "private": true,
+  "engines": {"node": ">=22.19.0"},
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,9 +10,12 @@
     "desktop": "node scripts/start-desktop.cjs",
     "test:workflow": "node --test scripts/test-workflow-preview.cjs",
     "test:store": "node --test scripts/test-store.cjs",
-    "test:skills": "node --test scripts/test-personal-skills.cjs"
+    "test:skills": "node --test scripts/test-personal-skills.cjs",
+    "test:harness": "node --test scripts/test-pi-harness.mjs"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "1.0.4",
+    "@earendil-works/pi-ai": "1.0.4",
     "next": "15.5.26",
     "react": "19.1.5",
     "react-dom": "19.1.5"

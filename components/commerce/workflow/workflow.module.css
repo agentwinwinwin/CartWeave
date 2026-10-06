@@ -58,9 +58,41 @@
 .tabs{gap:6px}.tabs button{font-size:13px}
 @media(max-width:760px){.overviewIntro{padding:24px}.overviewIntro h2{font-size:23px}.overviewIntro p{font-size:13px}.dialogHeader,.dialogBody{padding:20px}.dialogHeader h2{font-size:22px}.dialogFooter{padding:16px 20px}.dialogFooter>span{max-width:none}.canvas .cardDescription{font-size:12px}.canvas .cardDetail{font-size:10px}.canvas .cardFooter{font-size:11px}}
 .card.running .cardFooter,.card.collaborating .cardFooter{color:var(--color-focus)}
+/* Reference-inspired canvas treatment only; node dimensions and routing stay stable. */
+.canvasViewport{background:var(--color-canvas);padding-block:20px}
+.canvas .card{border-radius:16px;background:var(--color-surface);box-shadow:0 2px 3px #18233304,0 8px 20px #18233305;isolation:isolate}
+.canvas .card::after{content:"";position:absolute;inset:-9px;border-radius:24px;background:color-mix(in srgb,var(--color-muted) 5%,transparent);z-index:-1;pointer-events:none;transition:background .25s}
+.canvas .card::before{top:20px;bottom:20px;left:-1px;width:2px;opacity:.55}
+.canvas .card:hover{transform:none;box-shadow:0 4px 20px #1823330c}
+.canvas .cardTop{letter-spacing:.4px;color:var(--color-muted)}
+.canvas .cardTitle{display:flex;align-items:flex-start;gap:9px;font-size:14px;line-height:1.5;min-height:24px;margin-bottom:7px}
+.canvas .cardTitle>span:last-child{min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nodeIcon{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;flex:none;color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--color-surface))}
+.canvas .cardDescription{color:var(--color-muted);font-size:10.5px}
+.canvas .cardFooter{border-top:0;background:color-mix(in srgb,var(--color-canvas) 65%,var(--color-surface));border-radius:0 0 15px 15px}
+.canvas .card.running::after,.canvas .card.collaborating::after{background:color-mix(in srgb,var(--color-focus) 8%,transparent)}
+.canvas .card.completed::after,.canvas .card.done::after{background:color-mix(in srgb,var(--color-green) 5%,transparent)}
+.canvas .card.waiting::after,.canvas .card.approval::after,.canvas .card.decision::after{background:color-mix(in srgb,var(--color-orange) 7%,transparent)}
+.canvas .card.stopped::after{background:color-mix(in srgb,var(--color-red) 6%,transparent)}
+.canvas .card.running .nodeIcon,.canvas .card.collaborating .nodeIcon{color:var(--color-focus);background:color-mix(in srgb,var(--color-focus) 10%,var(--color-surface))}
+.canvas .card.selected:not(.running):not(.collaborating){box-shadow:0 0 0 2px color-mix(in srgb,var(--color-blue) 12%,transparent),var(--shadow-sm)}
+@media(max-width:760px){.canvas .cardTitle{font-size:16px}.canvas .cardDescription{font-size:12px}.canvasViewport{padding:24px 24px}}
 .card.running .cardFooter i,.card.collaborating .cardFooter i{background:var(--color-focus);box-shadow:0 0 7px color-mix(in srgb,var(--color-focus) 50%,transparent);animation:executionIndicator 3.2s ease-in-out infinite}
 @keyframes executionIndicator{0%,100%{opacity:.65}50%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.card.running,.card.collaborating,.collaborating,.jointPacket,.executionFrame rect,.card.running .cardFooter i,.card.collaborating .cardFooter i{animation:none}.executionFrame{display:none}.jointPacket{stroke-dasharray:8 8}}
 @media(prefers-reduced-motion:reduce){.running,.packet{animation:none}.packet{stroke-dasharray:none}.card{transition:none}}
 @media(max-width:1100px){.library{grid-template-columns:repeat(2,minmax(0,1fr))}.overviewIntro{padding:24px;gap:24px}.introStats{gap:20px}.introStats b{font-size:26px}.overviewIntro h2{font-size:20px}.boardHeader{padding:16px}.legend{gap:9px}.boardHeader>div:first-child{gap:10px}.runBar{flex-wrap:wrap}.runActions{max-width:100%}}
 @media(max-width:760px){.workspace :global(.page-header){flex-direction:column;gap:16px}.workspace :global(.page-header h1){font-size:24px}.workspace :global(.page-actions){flex-wrap:wrap}.library{grid-template-columns:1fr}.overviewIntro{display:block;padding:24px}.introStats{margin-top:24px}.sectionHead{align-items:flex-start}.sectionHead>span{display:none}.tabs{gap:1px}.tabs button{padding:8px 10px;font-size:11px}.skillIntro{flex-wrap:wrap;padding:20px}.skillIntro>div{flex:1;min-width:180px}.skillIntro button{margin-left:60px}.flowSummary{grid-template-columns:1fr;gap:15px}.boardHeader{flex-wrap:wrap}.canvasViewport{padding:24px 18px}.canvasFit{height:auto!important}.canvas{position:relative;width:100%;height:auto!important;transform:none!important;display:flex;flex-direction:column;gap:44px}.canvas .card{position:relative;left:auto!important;top:auto!important;width:100%;height:185px}.canvas .cardTitle{font-size:16px}.canvas .cardDescription{font-size:12px}.canvas .cardDetail{font-size:10px}.canvas .cardFooter{font-size:10px}.connections{display:none}.mobileLink{display:block;position:absolute;bottom:-34px;left:50%;font-size:18px;color:var(--color-subtle)}.canvas .card:last-child .mobileLink{display:none}.runBar{padding:20px 18px;gap:14px}.runActions{justify-content:flex-start}.handoff{align-items:flex-start;flex-direction:column}.dialogHeader{padding:22px}.dialogHeader h2{font-size:21px}.studioPipeline{gap:8px;font-size:9px;padding:17px 9px}.dialog>.tabs{padding-inline:18px}.dialogBody{padding:22px}.formRow{grid-template-columns:1fr}.dialogFooter{padding:15px 18px;flex-wrap:wrap}.dialogFooter>span{width:100%;margin-bottom:5px}.contract{gap:8px;grid-template-columns:1fr 14px 1fr}.contract div{padding:12px}.contract code{font-size:10px}}
+.catalogCard{height:auto;min-height:264px;box-shadow:none;border-color:var(--color-line-soft);transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.catalogCard:before{display:none}
+.catalogCard:hover{border-color:var(--color-line);box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.catalogCard .cardButton{padding:24px!important}
+.catalogCard .cardTop{margin-bottom:22px;letter-spacing:0;font-size:12px}
+.catalogCard .cardArrow{border:0;background:var(--color-canvas);border-radius:50%;width:28px;height:28px}
+.catalogCard .cardTitle{display:flex;align-items:center;gap:12px;font-size:19px;margin-bottom:14px}
+.catalogCard .nodeIcon{width:38px;height:38px;background:var(--color-canvas);color:var(--color-ink);border-radius:12px;flex:none}
+.catalogCard .cardDescription{font-size:13px;line-height:1.8;min-height:48px}
+.catalogCard .cardDetail{font-size:12px;color:var(--color-muted);margin:14px 0 22px}
+.catalogCard .cardFooter{font-size:11px;gap:12px;width:100%;margin-left:0;padding:16px 0 0}
+.catalogCard .cardFooter i{display:none}
+@media(prefers-reduced-motion:reduce){.catalogCard{transition:none}.catalogCard:hover{transform:none}}
