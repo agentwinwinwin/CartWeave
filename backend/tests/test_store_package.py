@@ -58,14 +58,15 @@ class StorePackageTests(TestCase):
     def test_contract_matches_implemented_package(self):
         response = self.api.get('/api/test-store/v1/contracts')
         self.assertEqual(response.data, package_contract())
-        self.assertEqual(len(response.data['actions']), 9)
+        self.assertEqual(len(response.data['actions']), 15)
         descriptors=response.data['design_manifests']
         self.assertEqual(len(descriptors),3)
         self.assertTrue(all(d['parameterSchema']=={} for d in descriptors))
         self.assertTrue(all(d['channels']==['test-store'] for d in descriptors))
         self.assertEqual(next(d for d in descriptors if d['id'].endswith('listing.publish'))['input'],'PreparedChannelPublication@1')
         self.assertEqual(next(a for a in response.data['actions'] if a['action']=='listing.publish')['inputSchema']['properties']['listing']['$ref'],'#/$defs/Listing')
-        self.assertIn('order.start', response.data['unsupported'])
+        self.assertIn('supplier.pay', response.data['unsupported'])
+        self.assertTrue(response.data['extensions'])
         self.api.credentials()
         self.assertIn(self.api.get('/api/v1/integration-packages').status_code, [401, 403])
         user = User.objects.create_user('package-owner')

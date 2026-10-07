@@ -38,3 +38,21 @@ class BusinessEvent(models.Model):
     def save(self,*args,**kwargs):
         if not self._state.adding:raise ValueError('Create a new fact revision, do not overwrite exports.')
         super().save(*args,**kwargs)
+
+
+class ExchangeRecord(Record):
+    client = models.ForeignKey(ApiClient, on_delete=models.PROTECT)
+    kind = models.CharField(max_length=30)
+    operation_key = models.CharField(max_length=64)
+    input_digest = models.CharField(max_length=64)
+    payload = models.JSONField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['client','operation_key'], name='unique_test_exchange_key')]
+
+
+class TestingEnrollment(models.Model):
+    store = models.OneToOneField('connections.Store', on_delete=models.PROTECT)
+    configuration_version = models.PositiveIntegerField()
+    contract_digest = models.CharField(max_length=64)
+    confirmed_at = models.DateTimeField()

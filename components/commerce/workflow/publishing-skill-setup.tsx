@@ -10,7 +10,7 @@ import {IntegrationFlow} from "./integration-flow";
 import {IntegrationSkillEntries} from "../skills/integration-skill-entries";
 
 export type ApiMode="create-api"|"existing-api";
-type InstalledPackage={package:string;version:string;channel:string;scope:string;actions:{action:string}[];unsupported:string[]};
+type InstalledPackage={package:string;version:string;channel:string;scope:string;actions:{action:string}[];extensions?:{package:string;version:string;scope:string;actions:{action:string}[]}[];unsupported:string[]};
 export function PublishingSkillSetup({channel,mode,onModeChange,actions=storeActionIds,showFlow=true,readOnlyMode=false}:{channel:string;mode:ApiMode;onModeChange:(value:ApiMode)=>void;actions?:string[];showFlow?:boolean;readOnlyMode?:boolean}){
   const create=mode==="create-api";
   const [installed,setInstalled]=useState<InstalledPackage[]>([]);
@@ -20,7 +20,8 @@ export function PublishingSkillSetup({channel,mode,onModeChange,actions=storeAct
   function download(value:unknown,name:string){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   const briefLink=(kind:string)=>`/skills?create=${kind}&channel=${encodeURIComponent(channel)}&apiMode=${mode}&actions=${encodeURIComponent(actions.join(","))}`;
   function downloadContracts(){
-    const data={version:"0.1.0-draft",channel,status:"design-only",apiMode:mode,actions:actions.map(id=>{const d=getDefinition(id)!;return {action:id,description:d.description,input:d.input,output:d.output,effects:d.allowedEffects,inputSchema:contractSchemas[d.input]??null,outputSchema:contractSchemas[d.output]??null};}),schemas:contractSchemas};
+    if(current){download(current,'store-api-contracts.json');return;}
+    const data={version:"0.1.0-draft",channel,status:"design-only",apiMode:mode,actions:actions.map(id=>{const d=getDefinition(id);return {action:id,description:d?.description??'必须读取已安装包的 HTTP 契约',input:d?.input??null,output:d?.output??null,effects:d?.allowedEffects??[],inputSchema:d?contractSchemas[d.input]??null:null,outputSchema:d?contractSchemas[d.output]??null:null};}),schemas:contractSchemas};
     const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
     const a=document.createElement("a");a.href=url;a.download="contracts.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
@@ -32,7 +33,7 @@ export function PublishingSkillSetup({channel,mode,onModeChange,actions=storeAct
     <p>当前渠道标识：<code>{channel}</code>。契约和制作说明使用此标识；如不正确，请先在工作流顶部切换销售渠道。</p>
     <p>AI 首次制作接口与适配脚本 → 测试审查并安装 → 店铺绑定一次 → 后端按动作复用。日常运行不重新生成代码，也不需要给每个接口节点重复制作 Skill。</p>
     {packageError&&<p role="status">{packageError}</p>}
-    {current&&<section><h3>后端已安装接入包：{current.package} · {current.version}</h3><p>已实现动作：{current.actions.map(item=>item.action).join("、")}。这是实际 HTTP 字段规范，与下方工作流设计契约不是同一协议。</p><p>尚不支持：{current.unsupported.join("、")}。店铺连接仍须验收；当前执行入口为测试站七步发布主线。</p><Button type="button" compact onClick={()=>download(current,"store-api-contracts.json")}>下载实际接口契约</Button>{" "}<Link href="/workflow/live">验收连接并测试发布 ↗</Link></section>}
+    {current&&<section><h3>后端已安装接入包：{current.package} · {current.version}</h3><p>核心动作：{current.actions.map(item=>item.action).join("、")}。</p>{current.extensions?.map(ext=><details key={ext.package}><summary>{ext.package} · {ext.version} · 单独确认的测试扩展</summary><p>{ext.actions.map(a=>a.action).join('、')}</p></details>)}<p>一个下载包包含商品发布、订单/物流/客户/财务、客服收件与答复、素材归档及测试数据入口的实际 HTTP Schema。扩展仍需测试站联调验收；共用包不等于获准付款或消息写入。</p><p>尚不支持：{current.unsupported.join("、")}。</p><Button type="button" compact onClick={()=>download(current,"store-api-contracts.json")}>下载完整接口契约（含扩展）</Button>{" "}<Link href="/test-store-lab">测试业务联调 ↗</Link></section>}
     <label className={styles.field}>店铺接口情况<SelectField aria-label="店铺接口情况" disabled={readOnlyMode} value={mode} onChange={e=>onModeChange(e.target.value as ApiMode)}>
       <option value="existing-api">已有可用 API · 亚马逊等平台 / 已接好接口的独立站</option>
       <option value="create-api">自建独立站尚无 API · 先生成接口</option>

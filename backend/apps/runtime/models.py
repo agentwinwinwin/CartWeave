@@ -82,6 +82,8 @@ class WorkflowSchedule(TeamRecord):
     last_run = models.ForeignKey(WorkflowRun, null=True, on_delete=models.PROTECT)
     last_error = models.CharField(max_length=500, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+    message_cursor = models.UUIDField(null=True)
+    last_polled_at = models.DateTimeField(null=True)
 
 
 class ScheduleOccurrence(TeamRecord):
@@ -100,3 +102,17 @@ class ScheduleOccurrence(TeamRecord):
 class SchedulerHeartbeat(models.Model):
     name = models.CharField(max_length=20, primary_key=True)
     last_seen_at = models.DateTimeField()
+
+
+class SupportMessageClaim(TeamRecord):
+    """One model execution intent per store message, shared by manual and event runs."""
+    store = models.ForeignKey('connections.Store', on_delete=models.PROTECT)
+    store_version = models.PositiveIntegerField()
+    message_id = models.UUIDField()
+    schedule = models.ForeignKey(WorkflowSchedule, null=True, on_delete=models.PROTECT, related_name='message_claims')
+    release = models.ForeignKey('workflows.DesignRelease', null=True, on_delete=models.PROTECT)
+    run = models.OneToOneField(WorkflowRun, null=True, on_delete=models.PROTECT)
+    message = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['team','store','store_version','message_id'], name='unique_support_message_claim')]

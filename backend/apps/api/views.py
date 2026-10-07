@@ -43,7 +43,10 @@ class IntegrationPackages(APIView):
     def get(self, request):
         membership(request)
         from contracts.store_api import package_contract
+        from contracts.store_testing import contract as testing_contract
+        from django.conf import settings
         return Response({'packages': [package_contract()], 'execution': 'server-installed-only',
+                         'testing_extensions':[testing_contract()] if settings.LOCAL and settings.DESKTOP_MODE else [],
                          'note': 'AI-generated source must be reviewed, tested and installed by the server; uploading a manifest does not execute it.'})
 
 class Session(APIView):

@@ -31,6 +31,14 @@ class RunSerializer(serializers.ModelSerializer):
 
     def get_context(self, obj):
         source = obj.context
+        if 'business' in source:
+            result={'business':source['business'],'stop_requested':source.get('stop_requested',False)}
+            if source['business'].get('batch_id'):
+                from apps.agents.models import ProductImageBatch
+                from apps.agents.image_views import public_batch
+                batch=ProductImageBatch.objects.filter(pk=source['business']['batch_id'],team=obj.team).first()
+                if batch: result['business']={**source['business'],'batch':public_batch(batch)}
+            return result
         result = {key:source[key] for key in ('brief','listing','published','selection_proposal','archived_research','verification',
             'batch_mode','batch_meta','batch_briefs','batch_listings','batch_validations','batch_items','stop_requested','market_intelligence') if key in source}
         state = source.get('selection')

@@ -7,9 +7,9 @@ import {Icon,type IconName} from '@/components/ui/icon';
 import {getBackendSession} from '@/lib/workflow/backend-client';
 
 const nav=[
-  ["/workflow","工作流"],["/schedules","定时器"],["/products","商品"],["/earnings","收益"],["/orders","订单"],["/customers","客户"],["/skills","技能"],["/assistant","对话 AI"],["/connections/cj","连接"],
+  ["/workflow","工作流"],["/schedules","定时器"],["/products","商品"],["/earnings","收益"],["/orders","订单"],["/customers","客户"],["/reviews","复盘"],["/support","客服"],["/skills","技能"],["/connections/cj","连接"],
 ];
-const icons:IconName[]=['workflow','clock','box','orders','orders','people','sparkles','chat','connect'];
+const icons:IconName[]=['workflow','clock','box','orders','orders','people','orders','chat','sparkles','connect'];
 
 export function DashboardShell({children}:{children:ReactNode}){
   const pathname=usePathname();

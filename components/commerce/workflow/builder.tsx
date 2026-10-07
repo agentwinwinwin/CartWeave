@@ -18,7 +18,14 @@ import {MappingNodeWindow} from "./mapping-node-window";
 import {ModelConnectionsWindow} from './model-connections-window';
 import {PublishingNodeWindow} from './publishing-node-window';
 import {CustomerSupportWindow} from './customer-support-window';
+import {OperationsReviewWindow} from './operations-review-window';
+import {ProductImagesWindow} from './product-images-window';
+import {imageBusy,imageStage,imageStatusNames,type ImageBatch} from '@/lib/product-images';
 import {LiveWorkflow} from './live-workflow';
+import {BusinessRun} from './business-run';
+import {BusinessConfigurationWindow} from './business-configuration-window';
+import {FulfillmentConfigurationWindow} from './fulfillment-configuration-window';
+import {executionEntry} from '@/lib/workflow/execution-entry';
 import {addIntelligenceNode,updateCustomerSupportDraft} from '@/lib/workflow/universal';
 import {BackendRequestError,backendRequest} from '@/lib/workflow/backend-client';
 import {bindDefaultRuntimeSkills,needsDefaultRuntimeSkills,applySelectionBasis} from '@/lib/workflow/default-runtime-skills';
@@ -60,6 +67,14 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
   const [mappingNodeId,setMappingNodeId]=useState<string|null>(null);
   const [publishAdvanced,setPublishAdvanced]=useState(false);
   const [supportAdvanced,setSupportAdvanced]=useState(false);
+  const [reviewAdvanced,setReviewAdvanced]=useState(false);
+  const [imageBatch,setImageBatch]=useState<ImageBatch|null>(null);
+  useEffect(()=>{
+    if(!document||document.templateId!=='product-images'){setImageBatch(null);return;}
+    let alive=true;const designId=document.id;
+    const load=()=>void backendRequest<ImageBatch[]>(`product-image-batches?design_id=${encodeURIComponent(designId)}`).then(rows=>{if(alive)setImageBatch(rows[0]??null);}).catch(()=>{/* Node window displays persistent read errors; never fake progress. */});
+    load();const timer=setInterval(load,3000);return()=>{alive=false;clearInterval(timer);};
+  },[document?.id,document?.templateId]);
   useEffect(()=>{
     const url=new URL(window.location.href);
     if(url.searchParams.get('configure')!=='mapping')return;
@@ -191,12 +206,14 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
   const save = async (source=document) => {
     if (!source) return;
     setBusy(true);const currentSerial=serial.current;
-    try { const snapshot=needsDefaultRuntimeSkills(source)?bindDefaultRuntimeSkills(source,await backendRequest<RegisteredSkill[]>('skills')):source;if(currentSerial!==serial.current)throw Error('读取默认 Skill 时草稿已变化，请重新保存。');if(snapshot!==source){setDocument(snapshot);setFrozenConfig(null);}const row=await saveDesign(snapshot,savedRows.current[snapshot.id]?.revision??0);savedRows.current[snapshot.id]=row;setMessage(`配置已保存到后端 · 保存版本 ${row.revision}。冻结前不会执行。`);try{await workflowDesignClient.save(snapshot);}catch{/* Backend is authoritative; browser cache is optional. */}return row; }
+    try { const snapshot=needsDefaultRuntimeSkills(source)?bindDefaultRuntimeSkills(source,await backendRequest<RegisteredSkill[]>('skills')):source;if(currentSerial!==serial.current)throw Error('读取默认 Skill 时草稿已变化，请重新保存。');if(snapshot!==source){setDocument(snapshot);setFrozenConfig(null);}const row=await saveDesign(snapshot,savedRows.current[snapshot.id]?.revision??0);savedRows.current[snapshot.id]=row;setMessage(`配置已保存到后端 · 保存版本 ${row.revision}。${executionEntry(snapshot.templateId).kind==='frozen'?'冻结前不会执行。':'保存不会自动执行，请使用当前业务入口。'}`);try{await workflowDesignClient.save(snapshot);}catch{/* Backend is authoritative; browser cache is optional. */}return row; }
     catch(e) { setMessage(`配置未保存：${e instanceof Error?e.message:'后端不可用'}。请保留或导出当前编辑，不能按未保存配置运行。`); }
     finally{setBusy(false);}
   };
   const freezeSaved=async()=>{
-    if(!document||busy)return;setBlockedNode(null);setBusy(true);const current=serial.current;
+    if(!document||busy)return;
+    if(executionEntry(document.templateId).kind!=='frozen'){setMessage('当前业务使用独立执行入口，不创建发布流程冻结版本；请点击画布上的执行按钮。');return;}
+    setBlockedNode(null);setBusy(true);const current=serial.current;
     let saved=false;
     try{
       let snapshot=document;
@@ -305,7 +322,7 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
     const end: NodeInstance = { id: `result-${crypto.randomUUID()}`, definitionId: "flow.end", title: "交付本次结果", binding: { skillId: skill?.id ?? "", skillVersion: skill?.version ?? "1.0.0", mode: "default", parameters: skill ? defaultParameters(skill) : {} } };
     reconnect([...document.nodes.slice(0, document.nodes.findIndex(n => n.id === instance.id) + 1), end]); setSelected(null);
   };
-  const editor = instance && document ? instance.definitionId==='support.propose'&&!supportAdvanced?<CustomerSupportWindow onClose={()=>setSelected(null)} onConfigure={()=>setSupportAdvanced(true)}/>:instance.definitionId==='listing.publish'&&!publishAdvanced?<PublishingNodeWindow document={document} onConfigure={()=>{setSelected(null);setMappingNodeId(document.nodes.find(n=>n.definitionId==='listing.map')?.id??null);setMappingOpen(true);}} onClose={()=>setSelected(null)}/>:<NodeInspector key={instance.id} editor={{ document, instance, onApply: applyNode, onConfigureBasis:configureSelectionBasis,onRegister: register, onConfigureStore: () => { setSelected(null); setStoreConnectionOpen(true); },
+  const editor = instance && document ? document.templateId==='fulfillment'?<FulfillmentConfigurationWindow document={document} onClose={()=>setSelected(null)} onApply={config=>{const nodes=document.nodes.map((n,i)=>({...n,binding:{skillId:n.definitionId+'.core',skillVersion:'1.0.0',mode:'default' as const,parameters:i===0?{runtime:config}:{}}}));commit({...document,environment:{...document.environment,fulfillment:'merchant'},nodes},'已应用测试仓库履约配置；保存冻结后运行，不执行 CJ 采购付款。');setSelected(null);}}/>:(['support','product-images'].includes(document.templateId)&&(instance.definitionId.startsWith('support.')||instance.definitionId.startsWith('image.')))?<BusinessConfigurationWindow document={document} onClose={()=>setSelected(null)} onApply={config=>{const nodes=document.nodes.map((n,i)=>i===0?{...n,binding:{...n.binding,parameters:{...n.binding.parameters,runtime:config}}}:n);commit({...document,nodes},'运行配置已应用；保存并冻结后生效，旧运行不变。');setSelected(null);}}/>:instance.definitionId==='insight.propose'&&!reviewAdvanced?<OperationsReviewWindow onClose={()=>setSelected(null)} onConfigure={()=>setReviewAdvanced(true)}/>:instance.definitionId==='support.propose'&&!supportAdvanced?<CustomerSupportWindow onClose={()=>setSelected(null)} onConfigure={()=>setSupportAdvanced(true)}/>:instance.definitionId==='listing.publish'&&!publishAdvanced?<PublishingNodeWindow document={document} onConfigure={()=>{setSelected(null);setMappingNodeId(document.nodes.find(n=>n.definitionId==='listing.map')?.id??null);setMappingOpen(true);}} onClose={()=>setSelected(null)}/>:<NodeInspector key={instance.id} editor={{ document, instance, onApply: applyNode, onConfigureBasis:configureSelectionBasis,onRegister: register, onConfigureStore: () => { setSelected(null); setStoreConnectionOpen(true); },
     onMove: structurallyEditable(instance) ? move : undefined,
     onEndHere: getNodeOperatorPolicy(instance.definitionId).mode === "skill" && structurallyEditable(instance) ? endHere : undefined,
     onRemove: document.nodes.length > 2 && structurallyEditable(instance) ? () => { reconnect(document.nodes.filter(n => n.id !== instance.id)); setSelected(null); } : undefined }} onClose={() => setSelected(null)} /> : null;
@@ -320,27 +337,41 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
   </div>;
 
   const flow = toWorkflowPreview(document);
+  const imageIndex=imageBatch?imageStage(imageBatch.status):0;
+  const imageDocument=imageBatch?.configuration.design_snapshot??document;
+  const imageNode=imageDocument.nodes[imageIndex];
+  const imageRun=document.templateId==='product-images'&&imageBatch&&imageNode?{
+    nodeId:imageNode.id,phase:(imageBatch.status==='delivered'?'done':imageBusy(imageBatch.status)?'running':['plan_ready','review','needs_info'].includes(imageBatch.status)?'approval':'stopped') as 'done'|'running'|'approval'|'stopped',
+    completed:imageDocument.nodes.slice(0,imageIndex).map(n=>n.id),message:`${imageStatusNames[imageBatch.status]??imageBatch.status} · ${imageBatch.assets.length} 张真实图片`,revision:imageBatch.revision,
+  }:null;
   const template = workflowTemplates.find(t => t.id === document.templateId);
   const valid = result?.valid && result.revision === document.revision;
   const channel = document.environment.channel;
   const activeChannel = resolveChannel(channel, document.customChannels);
   const relationEdges = document.edges.filter(e => e.kind !== "forward");
   const mappingNode=document.nodes.find(n=>n.id===mappingNodeId&&n.definitionId==='listing.map')??document.nodes.find(n=>n.definitionId==='listing.map');
-  const inspectNode = (id:string) => {setPreview(false);setPublishAdvanced(false);setSupportAdvanced(false);if(document.nodes.find(n=>n.id===id)?.definitionId==='listing.map'){setSelected(null);setMappingNodeId(id);setMappingOpen(true);}else setSelected(id);};
+  const inspectNode = (id:string) => {setPreview(false);setPublishAdvanced(false);setSupportAdvanced(false);setReviewAdvanced(false);if(document.nodes.find(n=>n.id===id)?.definitionId==='listing.map'){setSelected(null);setMappingNodeId(id);setMappingOpen(true);}else setSelected(id);};
+  const entry=executionEntry(document.templateId);
+  const openExecution=()=>{
+    const node=document.nodes.find(n=>n.definitionId===entry.node);
+    if(node)inspectNode(node.id);
+    else setMessage('当前草稿缺少此业务的执行节点，请检查流程；不会跳过缺失节点启动任务。');
+  };
   if (preview && valid) return <div className={shared.workspace}><div className={styles.previewToolbar}><Button onClick={() => setPreview(false)}>← 返回设计</Button><span>配置预检通过 · r{document.revision}</span><Badge tone="warning">本地模拟</Badge></div><WorkflowWorkspace customFlow={flow} onInspect={node => inspectNode(node.id)} /></div>;
 
   return <div className={`${shared.workspace} ${styles.executionWorkspace}`} data-technical={technicalView} data-executing={!!runningConfig&&runtimeVisible}>
     <div className={styles.designBreadcrumb}>{library ? <Button variant="ghost" onClick={() => { setDocument(null); setSelected(null); }}>工作流</Button> : <Link href="/workflow">工作流</Link>}<span>/</span><span>{template?.title ?? "我的流程"}</span><Badge>设计草稿</Badge><span>在当前画布运行</span></div>
-    <PageHeader title={document.title} description="调整经营参数与策略；保存并冻结后运行，已有任务沿用原配置。" actions={<><Button onClick={()=>setModelConnectionsOpen(true)}>添加大模型 API</Button><Link className="ui-button ui-button--secondary" href="/test-store" target="_blank" rel="noopener noreferrer">打开测试独立站 ↗</Link><Button disabled={busy||configLoading} onClick={()=>void save()}>保存配置</Button><Button disabled={busy||configLoading} onClick={()=>void freezeSaved()}>校验并冻结</Button><Link className="ui-button ui-button--secondary" href="/schedules">定时运行 ↗</Link><Link className="ui-button ui-button--secondary" href="/workflow/releases">冻结版本 ↗</Link><Button onClick={exportDocument}>导出流程 ↗</Button></>} />
-    {document.templateId==='support'&&<Card className={styles.channelNotice}><div><strong>智能客服 · 模型回复已可执行</strong><p>点击“智能客服生成回复”选择模型并提供客户问题与已确认资料。当前保存客服回复草稿，不自动取订单、发送消息、退款或补发；完整七步调度尚未接入，不支持冻结定时执行。</p></div><Button onClick={()=>{const node=document.nodes.find(n=>n.definitionId==='support.propose');setSupportAdvanced(false);if(node)setSelected(node.id);}}>执行客服 Skill</Button>{JSON.stringify(updateCustomerSupportDraft(document))!==JSON.stringify(document)&&<Button onClick={()=>commit(updateCustomerSupportDraft(document),'已更新为智能客服展示；节点配置、连线与引用保留，请保存配置。')}>更新为智能客服流程</Button>}</Card>}
+    <PageHeader title={document.title} description={entry.kind!=='frozen'?'配置可保存；通过下方业务执行入口创建任务或报告，不冻结为发布流程，也不自动定时执行。':'调整经营参数与策略；保存并冻结后运行，已有任务沿用原配置。'} actions={<><Button onClick={()=>setModelConnectionsOpen(true)}>添加大模型 API</Button><Link className="ui-button ui-button--secondary" href="/test-store" target="_blank" rel="noopener noreferrer">打开测试独立站 ↗</Link><Button disabled={busy||configLoading} onClick={()=>void save()}>保存配置</Button>{entry.kind==='frozen'&&<><Button disabled={busy||configLoading} onClick={()=>void freezeSaved()}>校验并冻结</Button><Link className="ui-button ui-button--secondary" href="/schedules">定时 / 持续执行 ↗</Link><Link className="ui-button ui-button--secondary" href="/workflow/releases">冻结版本 ↗</Link></>}<Button onClick={exportDocument}>导出流程 ↗</Button></>} />
+    {document.templateId==='support'&&<Card className={styles.channelNotice}><div><strong>智能客服 · 知识检索与回复</strong><p>复用已接入店铺，HTTP 读取测试收件、政策与订单；Pi 或确定性回复检查后，确认发送并回查测试站收件箱。单次消息按七步运行；收件箱版本可在定时器持续执行，普通问题按明确冻结的策略自动答复，异常转人工。不退款、不发邮件。</p></div><Button onClick={()=>{const node=document.nodes.find(n=>n.definitionId==='support.propose');setSupportAdvanced(false);if(node)setSelected(node.id);}}>配置客服运行</Button><Link className="ui-button" href="/support">查看客服记录 ↗</Link><Link className="ui-button" href="/test-store-lab">测试站联调 ↗</Link>{JSON.stringify(updateCustomerSupportDraft(document))!==JSON.stringify(document)&&<Button onClick={()=>commit(updateCustomerSupportDraft(document),'已更新为智能客服展示；节点配置、连线与引用保留，请保存配置。')}>更新为智能客服流程</Button>}</Card>}
+    {document.templateId==='optimize'&&<Card className={styles.channelNotice}><div><strong>经营复盘 · 真实数据只读核算</strong><p>归档最近七天财务事实与调整建议；缺失成本保留未知，不自动改价或投放。</p></div><Button onClick={()=>{const node=document.nodes.find(n=>n.definitionId==='insight.propose');setReviewAdvanced(false);if(node)setSelected(node.id);}}>生成复盘报告</Button><Link className="ui-button" href="/reviews">查看复盘记录 ↗</Link></Card>}
     {document.templateId==='launch'&&document.selectionStrategy&&!document.nodes.some(n=>n.definitionId==='market.intelligence')&&<Card className={styles.channelNotice}><div><strong>新增可选首节点 · CJ 市场类目排行</strong><p>采集销售与广告类目前十，确认供货类目后传给商品任务。默认关闭，保留全部现有参数，保存冻结后才影响新运行。</p></div><Button onClick={()=>commit(addIntelligenceNode(document),'行情首节点已加入，默认关闭；现有参数和已冻结运行不变。')}>添加行情首节点</Button></Card>}
-    <Card className={styles.environmentBar}>
+    {<Card className={styles.environmentBar}>
       <div><small>销售渠道</small><div className={styles.channelControl}><SelectField aria-label="销售渠道" value={channel} onChange={e => changeChannel(e.target.value)}>{channels.map(item => <option key={item.id} value={item.id}>{item.name}{item.adapterStatus === "draft" ? " · 待适配" : " · 示例"}</option>)}</SelectField><Button onClick={() => setChannelManagerOpen("add")}>＋ 添加渠道</Button></div></div>
       <label>履约责任<SelectField aria-label="履约责任" value={document.environment.fulfillment} onChange={e => changeChannel(channel, e.target.value as Fulfillment)}>{(activeChannel?.fulfillments ?? [document.environment.fulfillment]).map(mode => <option key={mode} value={mode}>{channel === "amazon" && mode === "platform" ? "平台履约观察 · FBA" : fulfillmentNames[mode]}</option>)}</SelectField></label>
       <div className={styles.contextCopy}><div className={styles.connectionTitle}><strong>{document.environment.storeIntegration?.name ?? "尚未配置店铺接入"}</strong></div><small>{document.environment.storeIntegration ? "已绑定接口包引用 · 执行时核验" : "一次接入，多流程复用"}</small><Button compact className={styles.connectionButton} onClick={() => setStoreConnectionOpen(true)}>配置店铺接入 ↗</Button></div>
       <Badge tone={valid ? "success" : "neutral"}>{valid ? "配置预检通过" : "待检查"} · r{document.revision}</Badge>
-    </Card>
-    {activeChannel?.adapterStatus === "draft" && !document.environment.storeIntegration && <Card className={styles.channelNotice}><Badge tone="warning">渠道待适配</Badge><div><strong>{activeChannel.name} 已加入设计目录</strong><p>先完成店铺接入与接口验收，再执行渠道动作；当前声明不代表已获平台授权。</p></div><Button onClick={() => setChannelManagerOpen("existing")}>管理渠道 ↗</Button></Card>}
+    </Card>}
+    {document.templateId!=='product-images'&&activeChannel?.adapterStatus === "draft" && !document.environment.storeIntegration && <Card className={styles.channelNotice}><Badge tone="warning">渠道待适配</Badge><div><strong>{activeChannel.name} 已加入设计目录</strong><p>先完成店铺接入与接口验收，再执行渠道动作；当前声明不代表已获平台授权。</p></div><Button onClick={() => setChannelManagerOpen("existing")}>管理渠道 ↗</Button></Card>}
     {document.templateId === "fulfillment" && <div className={styles.fulfillmentBranch} aria-label="当前履约分支"><span>订单接入 → 事实校验 → 责任判断</span><div><Badge tone={document.environment.fulfillment === "platform" ? "neutral" : "success"}>商家 / 供应商发运{document.environment.fulfillment === "platform" ? " · 不执行" : " · 当前路径"}</Badge><Badge tone={document.environment.fulfillment === "platform" ? "info" : "neutral"}>平台履约观察{document.environment.fulfillment === "platform" ? " · 当前路径" : " · 不执行"}</Badge></div></div>}
     <div className={styles.controlsGuide} aria-label="步骤编辑权限说明">
       <div><NodeAccess mode="fixed"/><span>查看规则，不可改执行逻辑</span></div>
@@ -358,11 +389,11 @@ export function WorkflowBuilder({ library = false }: { library?: boolean }) {
       ['listing.map','准备发布：选择已验收测试站店铺与安装接口包'],
     ].map(([definition,label])=>{const node=document.nodes.find(n=>n.definitionId===definition);return <div key={definition}><p>{label}</p><Button compact disabled={!node} onClick={()=>{if(node)inspectNode(node.id);}}>配置该节点</Button></div>;})}<p>模型选品、生图和其他销售渠道尚未部署执行器时，会明确阻止冻结。不会跳过检查、使用虚构数据或自动采购付款。</p></div></details>}
     <section className={shared.board} aria-label="通用工作流设计画布">
-      {runningConfig&&runtimeVisible?<header className={styles.canvasToolbar}><div><Badge tone="info">真实运行</Badge><span>保存版本 {runningConfig.revision} · 不受草稿编辑影响</span></div><Button onClick={()=>setRuntimeVisible(false)}>返回编辑（不停止任务）</Button></header>:<header className={styles.canvasToolbar}><div><Button onClick={() => { setCatalogOpen(!catalogOpen); if (!insertAfter) setInsertAfter(document.nodes.at(-2)?.id ?? ""); }}>＋ 添加节点</Button>{technicalView&&<Button variant="ghost" aria-pressed={relationsOpen} onClick={() => setRelationsOpen(!relationsOpen)}>↔ 节点关系</Button>}</div><div><span>适应画布</span><Button disabled={busy} onClick={validate}>{busy ? "检查中…" : "检查配置"}</Button><Button disabled={!valid || busy} onClick={() => setPreview(true)}>演示流程</Button>{runningConfig&&<Button variant="primary" onClick={()=>setRuntimeVisible(true)}>返回当前运行</Button>}<Button variant={runningConfig?"secondary":"primary"} disabled={busy||configLoading} onClick={()=>void (async()=>{const release=frozenConfig??await freezeSaved();if(release){setRuntimeRunId(null);setRuntimeSession(value=>value+1);setRunningConfig(release);setRuntimeVisible(true);}})()}>{runningConfig?"▶ 启动新运行":"▶ 运行流程"}</Button></div></header>}
+      {entry.kind!=='frozen'?<header className={styles.canvasToolbar}><div><Badge tone="info">{entry.kind==='independent'?'独立业务执行':'设计草稿'}</Badge><span>{entry.kind==='independent'?'执行结果保存到业务模块，不创建发布冻结版本':'当前仅支持配置与预览，尚未接入执行器'}</span></div><div><Button disabled={busy} onClick={validate}>检查配置</Button><Button disabled={!valid||busy} onClick={()=>setPreview(true)}>演示流程</Button><Button variant="primary" disabled={busy||configLoading||entry.kind==='design'} onClick={openExecution}>{entry.label}</Button></div></header>:runningConfig&&runtimeVisible?<header className={styles.canvasToolbar}><div><Badge tone="info">真实运行</Badge><span>保存版本 {runningConfig.revision} · 不受草稿编辑影响</span></div><Button onClick={()=>setRuntimeVisible(false)}>返回编辑（不停止任务）</Button></header>:<header className={styles.canvasToolbar}><div><Button onClick={() => { setCatalogOpen(!catalogOpen); if (!insertAfter) setInsertAfter(document.nodes.at(-2)?.id ?? ""); }}>＋ 添加节点</Button>{technicalView&&<Button variant="ghost" aria-pressed={relationsOpen} onClick={() => setRelationsOpen(!relationsOpen)}>↔ 节点关系</Button>}</div><div><span>适应画布</span><Button disabled={busy} onClick={validate}>{busy ? "检查中…" : "检查配置"}</Button><Button disabled={!valid || busy} onClick={() => setPreview(true)}>演示流程</Button>{runningConfig&&<Button variant="primary" onClick={()=>setRuntimeVisible(true)}>返回当前运行</Button>}<Button variant={runningConfig?"secondary":"primary"} disabled={busy||configLoading} onClick={()=>void (async()=>{const release=frozenConfig??await freezeSaved();if(release){if(release.scope==='support'&&(release.document.nodes[0].binding.parameters.runtime as Record<string,unknown>)?.input_mode==='inbox'){router.push('/schedules');return;}setRuntimeRunId(null);setRuntimeSession(value=>value+1);setRunningConfig(release);setRuntimeVisible(true);}})()}>{document.templateId==='support'&&(document.nodes[0].binding.parameters.runtime as Record<string,unknown>)?.input_mode==='inbox'?'配置持续执行 ↗':runningConfig?'▶ 启动新运行':'▶ 运行流程'}</Button></div></header>}
       {catalogOpen && <div className={styles.insertPanel}><label>增加哪个步骤<SelectField aria-label="添加节点职责" value={addDefinition} onChange={e => setAddDefinition(e.target.value)}>{nodeDefinitions.filter(d=>technicalView||["extension.review","extension.skill"].includes(d.id)).map(d => <option key={d.id} value={d.id}>{d.title}{technicalView?` · ${d.id}`:""}</option>)}</SelectField></label><label>插入位置<SelectField aria-label="插入位置" value={insertAfter} onChange={e => setInsertAfter(e.target.value)}>{document.nodes.slice(0, -1).map(n => <option key={n.id} value={n.id}>{n.title}之后</option>)}</SelectField></label><Button onClick={insert} disabled={document.nodes.length >= 40}>插入并配置</Button><Button variant="ghost" onClick={() => setCatalogOpen(false)}>收起</Button></div>}
-      {!runtimeVisible&&<WorkflowCanvas flow={flow} run={null} onSelect={node => inspectNode(node.id)} configs={{}} selectedId={selected ?? undefined} />}
+      {!runtimeVisible&&<WorkflowCanvas flow={imageRun?toWorkflowPreview(imageDocument):flow} run={imageRun} onSelect={node => inspectNode(node.id)} configs={{}} selectedId={selected ?? undefined} />}
       {runningConfig&&!runtimeVisible&&<p className={styles.status}>草稿修改只用于新运行；返回当前运行仍查看保存版本 {runningConfig.revision}，不会重新启动或改变原任务。</p>}
-      {runningConfig&&<section ref={runtimePanel} hidden={!runtimeVisible} aria-label="当前流程真实运行"><LiveWorkflow key={`${runningConfig.id}:${runtimeSession}`} embedded autoStart initialReleaseId={runningConfig.id} initialRunId={runtimeRunId??undefined} onRunIdChange={rememberRun} onExit={()=>setRuntimeVisible(false)} renderCanvas={(view,selectedId,onSelect)=><WorkflowCanvas executionMode flow={toWorkflowPreview(runningConfig.document)} run={view} configs={{}} selectedId={selectedId} onSelect={node=>onSelect(node.id)}/>}/></section>}
+      {runningConfig&&<section ref={runtimePanel} hidden={!runtimeVisible} aria-label="当前流程真实运行">{['support','product-images','fulfillment'].includes(runningConfig.scope)?<BusinessRun key={`${runningConfig.id}:${runtimeSession}`} release={runningConfig} initialRunId={runtimeRunId??undefined} onRunIdChange={rememberRun} onExit={()=>setRuntimeVisible(false)} renderCanvas={(view,id,onSelect)=><WorkflowCanvas executionMode flow={toWorkflowPreview(runningConfig.document)} run={view} configs={{}} selectedId={id} onSelect={node=>onSelect(node.id)}/>}/>:<LiveWorkflow key={`${runningConfig.id}:${runtimeSession}`} embedded autoStart initialReleaseId={runningConfig.id} initialRunId={runtimeRunId??undefined} onRunIdChange={rememberRun} onExit={()=>setRuntimeVisible(false)} renderCanvas={(view,selectedId,onSelect)=><WorkflowCanvas executionMode flow={toWorkflowPreview(runningConfig.document)} run={view} configs={{}} selectedId={selectedId} onSelect={node=>onSelect(node.id)}/>}/>}</section>}
       <footer className={styles.canvasFooter}><span>系统步骤不可由策略绕过</span><span>发光区分模拟与服务端运行，不表示可编辑</span><span>点击步骤，查看规则或调整设置 ↗</span></footer>
     </section>
     <p className={styles.status} role="status">{message || "草稿可自由编辑 · 配置窗口不会占用画布空间"}</p>

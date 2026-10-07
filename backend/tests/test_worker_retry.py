@@ -11,6 +11,9 @@ class WorkerRetryTests(SimpleTestCase):
         dispatcher=patch('apps.runtime.management.commands.runworker.dispatch_schedules')
         dispatcher.start()
         self.addCleanup(dispatcher.stop)
+        images=patch('apps.runtime.management.commands.runworker.due_batches',return_value=[])
+        images.start()
+        self.addCleanup(images.stop)
 
     def test_scheduler_database_lock_retries_without_starting_jobs(self):
         cmd=Command(stdout=StringIO(),stderr=StringIO())

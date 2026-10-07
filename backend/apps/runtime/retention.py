@@ -19,6 +19,11 @@ def prune_run_history(team, actor):
         context__batch_parent__isnull=True).filter(Q(context__history_pruned__isnull=True)|Q(context__history_pruned=False)).order_by('-created_at','-id'))
     result={'pruned':0,'protected':0,'kept':[str(r.id) for r in roots[:2]]}
     for root in roots[2:]:
+        # Model calls and image/send unknown results have their own evidence lifecycle.
+        # Never prune them through the CJ research retention policy.
+        if root.context.get('business'):
+            result['protected']+=1
+            continue
         family=[root,*WorkflowRun.objects.select_for_update().filter(team=team,context__batch_parent=str(root.id))]
         ids=[r.id for r in family]
         if any(r.status not in ('succeeded','cancelled','needs_attention','waiting_approval') for r in family) or (

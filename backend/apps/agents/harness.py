@@ -16,7 +16,7 @@ from apps.common.errors import RuleError
 
 def complete(connection, system, messages, *, purpose='mapping'):
     from apps.connections.model_gateway import provider_complete
-    if purpose not in {'mapping', 'assistant', 'customer_support', 'product_image_plan'}:
+    if purpose not in {'mapping', 'assistant', 'customer_support', 'customer_support_rag', 'product_image_plan', 'product_image_batch', 'product_image_photography'}:
         raise RuleError('未登记的模型运行用途。')
     if not messages or len(messages)>40 or any(m.get('role') not in ('user','assistant') or not isinstance(m.get('content'),str) for m in messages):
         raise RuleError('模型会话输入不合法。')

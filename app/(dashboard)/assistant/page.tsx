@@ -1,2 +1,2 @@
-import { AssistantPage } from "@/components/pages/assistant-page";
-export default function Page(){return <AssistantPage/>}
+import {redirect} from 'next/navigation';
+export default function Page(){redirect('/support');}

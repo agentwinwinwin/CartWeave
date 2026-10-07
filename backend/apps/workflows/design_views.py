@@ -89,10 +89,18 @@ class DesignFreeze(APIView):
                 raise Conflict('该冻结版本已删除，请到冻结版本管理页恢复，或保存新的配置后冻结。')
             return Response(release_data(existing))
         document = copy.deepcopy(row.document)
+        from apps.registry.business import is_business, validate as validate_business
         ids = [n.get('definitionId') for n in document['nodes'] if isinstance(n, dict)]
-        if ids != NODE_IDS and not is_launch(document):
+        if ids != NODE_IDS and not is_launch(document) and not is_business(document):
             from apps.registry.launch import LAUNCH_IDS
-            raise RuleError({'message': '仅支持已实现的七步发布图或完整十五步 CJ 到测试站主线；节点不能缺失、重排或插入未实现职责。',
+            entry = {
+                'support': ('智能客服使用独立的收件、回复确认与归档入口，不创建发布流程冻结版本。', '执行智能客服'),
+                'product-images': ('商品图使用独立图片批次，方案确认、生成与交付不创建发布流程冻结版本。', '运行商品图流程'),
+                'optimize': ('经营复盘使用只读核算与报告归档入口，不冻结或自动执行调整流程。', '生成复盘报告'),
+            }.get(document.get('templateId'))
+            if entry:
+                raise RuleError({'message': entry[0], 'hint': f'返回当前画布，点击“{entry[1]}”；已保存配置保留。', 'execution_mode': 'independent'})
+            raise RuleError({'message': '冻结仅支持七步发布图或受支持的完整 CJ 到测试站主线（含集中核验版本）；节点不能缺失、重排或插入未实现职责。',
                 'supported_nodes': LAUNCH_IDS, 'unimplemented_nodes': [key for key in ids if key not in LAUNCH_IDS]})
         environment = document.get('environment', {})
         if not isinstance(environment,dict):
@@ -103,6 +111,18 @@ class DesignFreeze(APIView):
             raise ValidationError('请配置实际后端店铺 UUID 连接引用；设计声明不能代替已验收连接。')
         store = get_object_or_404(Store, pk=store_id, team=member.team)
         check_store(store)
+        if is_business(document):
+            document=validate_business(document,store.team)
+            if document['templateId']=='support':
+                from apps.teststore.testing import adapter_for
+                adapter_for(member,str(store.id))
+            draft=WorkflowDraft.objects.create(team=member.team,title=document['title'],document=document,skill=None)
+            from .models import WorkflowVersion
+            version=WorkflowVersion.objects.create(team=member.team,workflow=draft,revision=1,document=document,digest=digest(document),skill=None)
+            release=DesignRelease.objects.create(team=member.team,design=row,revision=row.revision,document=document,
+                digest=digest(document),version=version,store=store,store_version=store.configuration_version)
+            AuditRecord.objects.create(team=member.team,actor=request.user,action='design.frozen',object_id=str(release.id))
+            return Response(release_data(release),status=201)
         # These fields describe connection metadata, never change executable nodes.
         if not is_launch(document):
             document['environment'] = {k:v for k,v in environment.items() if k not in ('storeRef', 'storeIntegration')}
@@ -136,7 +156,7 @@ class DesignFreeze(APIView):
 def release_data(row):
     return {'id': str(row.id), 'revision':row.revision, 'digest':row.digest, 'document':row.document,'deleted':hasattr(row,'retirement'),
         'version_id':str(row.version_id), 'store_id':str(row.store_id), 'store_version':row.store_version,
-        'scope':'cj-launch' if is_launch(row.document) else 'phase-one-publication'}
+        'scope':row.document['templateId'] if row.document.get('templateId') in ('support','product-images','fulfillment') else 'cj-launch' if is_launch(row.document) else 'phase-one-publication'}
 
 
 class ReleaseDetail(APIView):

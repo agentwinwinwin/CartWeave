@@ -14,7 +14,7 @@ from apps.common.errors import Conflict, RuleError
 from apps.common.utils import parse
 from apps.identity.permissions import membership, require_role
 from contracts.mapping import ModelSettings, MappingStart, MappingTurn, MappingAnswer
-from contracts.store_api import package_contract
+from contracts.store_api import package_contract, mapping_actions
 from .models import ModelConnection, MappingSession
 from .services import encrypt
 from .model_gateway import complete, validate_endpoint
@@ -89,7 +89,7 @@ class Mappings(APIView):
         member = membership(request, ['operator'])
         fields = parse(MappingStart, request.data)
         package = package_contract()
-        contract = ({'actions': package['actions'], 'unsupported': package['unsupported']}
+        contract = ({'actions': mapping_actions(), 'unsupported': package['unsupported']}
                     if fields['action'] == 'store.package'
                     else next(a for a in package['actions'] if a['action']==fields['action']))
         s = MappingSession.objects.create(team=member.team, **fields,

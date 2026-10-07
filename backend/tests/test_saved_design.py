@@ -54,3 +54,19 @@ class SavedDesignTests(TestCase):
         row = self.save_design(doc).data
         response = self.api.post(f"/api/v1/workflow-designs/{row['id']}/freeze", {'expected_revision':1}, format='json')
         self.assertEqual(response.status_code, 422)
+
+    def test_independent_business_freeze_explains_actual_entry_without_creating_release(self):
+        for template, definitions, button in [
+            ('optimize', ['insight.start', 'insight.propose', 'insight.end'], '生成复盘报告'),
+        ]:
+            with self.subTest(template=template):
+                doc = copy.deepcopy(self.version.document)
+                doc.update(id=f'independent-{template}', templateId=template,
+                           nodes=[{'id': str(i), 'definitionId': key} for i, key in enumerate(definitions)])
+                row = self.save_design(doc).data
+                versions = WorkflowVersion.objects.count()
+                response = self.api.post(f"/api/v1/workflow-designs/{row['id']}/freeze", {'expected_revision': 1}, format='json')
+                self.assertEqual(response.status_code, 422)
+                self.assertIn(button, str(response.data))
+                self.assertEqual(DesignRelease.objects.count(), 0)
+                self.assertEqual(WorkflowVersion.objects.count(), versions)

@@ -25,19 +25,21 @@ export type WorkflowEdge = { id: string; source: string; target: string; kind: "
 /** One store integration supplies multiple actions. Declarations are not live verification. */
 export type StoreIntegration = { channel: string; name: string; version: string; actions: string[]; status: "draft"; apiMode?: "create-api" | "existing-api" };
 export const storeActionIds = ["listing.validate", "listing.publish", "listing.wait", "order.start", "order.record", "insight.start", "insight.apply", "support.start", "support.context"];
+const installedStoreActions=['publication.lookup','listing.unpublish','listing.status','orders.read','customers.read','finance.read','shipments.read','order.detail','fulfillment.create','fulfillment.lookup','shipment.read','fulfillment.record'];
 export const isStoreAction = (id: string) => storeActionIds.includes(id);
 export type ExecutionEnvironment = { channel: Channel; fulfillment: Fulfillment; capabilities: string[]; storeRef?: string; storeIntegration?: StoreIntegration };
 export function resolveNodeConnection(node: NodeInstance, environment: ExecutionEnvironment) {
   if (node.binding.connectionRef) return { source: "override" as const, reference: node.binding.connectionRef };
   if (!isStoreAction(node.definitionId)) return { source: "service" as const, reference: undefined };
   const integration = environment.storeIntegration;
-  return { source: "store" as const, reference: integration && validStoreIntegration(integration, environment.channel) && integration.actions.includes(node.definitionId) ? environment.storeRef : undefined };
+  const action=({ 'order.start':'order.detail','order.record':'fulfillment.record'} as Record<string,string>)[node.definitionId]??node.definitionId;
+  return { source: "store" as const, reference: integration && validStoreIntegration(integration, environment.channel) && (integration.actions.includes(node.definitionId)||integration.actions.includes(action)) ? environment.storeRef : undefined };
 }
 export function validStoreIntegration(value: unknown, channel: string): boolean {
   if (value === undefined) return true;
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const item = value as StoreIntegration;
-  return item.channel === channel && item.status === "draft" && (item.apiMode===undefined||["create-api","existing-api"].includes(item.apiMode)) && typeof item.name === "string" && item.name.length <= 80 && typeof item.version === "string" && item.version.length <= 40 && Array.isArray(item.actions) && item.actions.length <= storeActionIds.length && new Set(item.actions).size === item.actions.length && item.actions.every(id => isStoreAction(id));
+  return item.channel === channel && item.status === "draft" && (item.apiMode===undefined||["create-api","existing-api"].includes(item.apiMode)) && typeof item.name === "string" && item.name.length <= 80 && typeof item.version === "string" && item.version.length <= 40 && Array.isArray(item.actions) && item.actions.length <= storeActionIds.length+installedStoreActions.length && new Set(item.actions).size === item.actions.length && item.actions.every(id => isStoreAction(id)||installedStoreActions.includes(id));
 }
 export type WorkflowDocument = { schemaVersion: "2"; id: string; title: string; revision: number; templateId: string; environment: ExecutionEnvironment; nodes: NodeInstance[]; edges: WorkflowEdge[]; customSkills: SkillManifest[]; customChannels?: SalesChannelDefinition[]; selectionStrategy?:NodeInstance };
 export function selectionStrategyNode(document:WorkflowDocument){return document.nodes.find(n=>n.definitionId==='product.decide')??document.selectionStrategy;}
@@ -96,7 +98,7 @@ export const nodeDefinitions: NodeDefinition[] = [
   d("campaign.wait", "等待广告审核", "wait", "CampaignSubmission@1", "ReviewedCampaign@1", "渠道未确认前保持暂停。", { event: "广告审核通过", provides: ["campaign.reviewed"] }),
   d("campaign.activate", "启动批准的广告", "action", "ReviewedCampaign@1", "CampaignResult@1", "在已批准范围内激活广告。", { requires: ["campaign.authorized", "campaign.reviewed"], allowedEffects: ["read", "remote_write", "spend"] }),
   d("campaign.end", "记录推广结果", "end", "CampaignResult@1", "CampaignResult@1", "后续复盘由独立调度触发。"),
-  d("image.start", "选择商品与参考素材", "trigger", "ProductImageRequest@1", "ProductImageFacts@1", "选择商品、规格及原图，记录真实尺寸、外观与可用素材授权；不要求先上架。"),
+  d("image.start", "选择已上架商品", "trigger", "ProductImageRequest@1", "ProductImageFacts@1", "单选、多选或全选已确认上架的商品，继承商品事实与原图；不重新接店铺。"),
   d("image.brief", "制定商品图制作方案", "ai", "ProductImageFacts@1", "ProductImagePlan@1", "使用 Skill 制定主图、场景图与细节图需求；明确尺寸、用途及不能改变的商品事实。", { allowedEffects: ["read", "artifact"] }),
   d("image.generate", "生成商品图", "ai", "ProductImagePlan@1", "GeneratedProductImages@1", "配置图片服务 Skill，输出真实图片引用、制作方案版本及生成来源；失败不生成虚假素材。", { allowedEffects: ["read", "artifact"] }),
   d("image.check", "检查图片与商品一致性", "rule", "GeneratedProductImages@1", "CheckedProductImages@1", "检查图片可读取、规格尺寸及商品外观与声明；自动检查不足时保留待人工核验，不自报真实性通过。"),
@@ -197,6 +199,9 @@ export const skillManifests: SkillManifest[] = nodeDefinitions.flatMap(definitio
     return [skill];
   });
 });
+for(const definition of nodeDefinitions.filter(d=>d.id.startsWith('order.')&&adapterIds.has(d.id))){
+  skillManifests.push({...manifest(definition,'test-store'),id:definition.id+'.core',name:'测试站 · '+definition.title,channels:['test-store'],capabilities:[],parameterSchema:{},effects:definition.allowedEffects.filter(e=>e!=='spend'&&e!=='message'),entrypointRef:'registry://core/test-fulfillment@1'});
+}
 for (const runtime of ["script", "llm", "manual"] as SkillRuntime[]) {
   const definition = nodeDefinitions.find(item => item.id === "product.decide")!;
   skillManifests.push({ ...manifest(definition, "shopify"), id: `product.decision.${runtime}`, name: `${runtime === "script" ? "规则评分脚本" : runtime === "llm" ? "模型证据分析" : "人工选品决策"}`, runtime, parameterSchema: parametersFor(definition, runtime), channels: anyChannel, capabilities: [], entrypointRef: `registry://product-decision/${runtime}@1` });
@@ -212,7 +217,7 @@ export function defaultSkillFor(definitionId: string, channel: Channel, fulfillm
   const adapter = builtinChannelIds.includes(channel)
     ? skillManifests.find(skill => skill.id === `${definitionId}.${channel}.${fulfillment}`) ?? skillManifests.find(skill => skill.id === `${definitionId}.${channel}`)
     : undefined;
-  return adapter ?? skillManifests.find(skill => skill.id === `${definitionId}.core`);
+  return adapter ?? skillManifests.find(skill => skill.id === `${definitionId}.core` && skillSupportsChannel(skill,channel));
 }
 export type CategoryQuery = {categoryId:string;keyword:string};
 export function categoryQueriesFor(p:Record<string,unknown>):CategoryQuery[] {
@@ -297,6 +302,23 @@ function rebindChannelStages(document:WorkflowDocument,channel:Channel,fulfillme
 }
 
 export function validateWorkflowPreview(document: WorkflowDocument): PreviewValidationResult {
+  if(['support','product-images','fulfillment'].includes(document.templateId)&&document.nodes[0]?.binding.parameters.runtime){
+    const expected=workflowTemplates.find(t=>t.id===document.templateId)!.definitions;
+    const errors:PreviewIssue[]=[];
+    const fail=(message:string)=>errors.push({code:'BUSINESS_RUNTIME',message,nodeId:document.nodes[0]?.id});
+    if(document.nodes.map(n=>n.definitionId).join('|')!==expected.join('|'))fail('仅支持完整标准业务主线，不支持插入、删除或重排。');
+    const edges=forwardEdges(document.nodes),actual=document.edges.filter(e=>e.kind==='forward');
+    if(actual.length!==edges.length||edges.some((e,i)=>actual[i]?.source!==e.source||actual[i]?.target!==e.target))fail('标准业务前向连线不匹配。');
+    if(!document.environment.storeRef)fail('请先保存已验收的店铺接入。');
+    const c=document.nodes[0].binding.parameters.runtime as Record<string,unknown>;
+    if(document.templateId==='support'){
+      if(!['message','inbox'].includes(String(c.input_mode??'message'))||!['manual','automatic'].includes(String(c.reply_policy??'manual'))||c.reply_policy==='automatic'&&c.input_mode!=='inbox')fail('自动答复仅用于明确配置的收件箱监听版本。');
+      if((c.input_mode!=='inbox'&&!c.message_id)||c.input_mode==='inbox'&&!!c.message_id||c.sample_knowledge_confirmed!==true||!['fixture','pi'].includes(String(c.mode))||c.mode==='pi'&&!c.connection_id)fail('请选择消息或收件箱监听、回复执行器并确认测试政策；Pi 模式需要模型连接。');
+    }else if(document.templateId==='fulfillment'){
+      if(!c.order_id||c.test_execution_confirmed!==true||document.environment.fulfillment!=='merchant')fail('请选择订单，确认测试仓库履约；本版本不执行供应商采购或平台发货。');
+    }else if(!Array.isArray(c.product_ids)||!c.product_ids.length||!c.planner_id||!c.generator_id)fail('请选择已上架商品、方案模型及生图连接。');
+    return {engine:'frontend-preview',source:'frontend-preview',valid:errors.length===0,revision:document.revision,errors,warnings:[{code:'SERVER_REQUIRED',message:'浏览器仅检查配置结构；店铺权限、模型、Skill 摘要及商品状态由后端冻结与执行时校验。'}]};
+  }
   const original=document;
   document=withSelectionStages(document);
   const errors: PreviewIssue[] = []; const warnings: PreviewIssue[] = [];
@@ -414,6 +436,7 @@ export function toWorkflowPreview(document: WorkflowDocument): Workflow {
       const output = node.definitionId==='product.verify'&&document.selectionStrategy?'SelectionAssessment@1':definition.passthrough ? context : definition.output;
       context = output;
       const skill = getSkill(node.binding.skillId, document);
+      const business=['support','product-images','fulfillment'].includes(document.templateId);
       return {
         id: node.id, title: document.environment.fulfillment === "platform" && node.title === definition.title ? ({ "order.dispatch": "观察平台履约", "order.record": "记录平台通知状态", "order.authorize": "确认观察范围", "order.wait": "等待平台出库状态" } as Record<string, string>)[definition.id] ?? node.title : node.title, kind: definition.kind,
         description: definition.id==='market.intelligence'?(node.binding.parameters.enabled===true?'已启用 · 两榜各前十 → 已确认的 CJ 供货类目':'未启用 · 跳过网页采集，沿用商品任务搜索词'):definition.id==='product.start'&&intelligenceEnabled(document)?'方向继承行情首节点；只配置数量、库存、配送、费用与选品策略。':definition.kind==="approval"&&node.binding.parameters.approvalEnabled===false?"跳过人工审核 · 系统检查仍保留":getNodeOperatorPolicy(definition.id).description, input, output,
@@ -422,7 +445,7 @@ export function toWorkflowPreview(document: WorkflowDocument): Workflow {
         steps: [...definition.steps, `实现：${skill?.name ?? "未绑定"}；入口只作引用，不会执行`],
         event: definition.event, passthrough: definition.passthrough, skill: skill?.id,
         implementation: skill ? { name: skill.name, runtime: skill.runtime, version: skill.version, entrypointRef: skill.entrypointRef } : undefined,
-        implementationMissing: !skill,
+        implementationMissing: business?false:!skill,
         next: document.edges.find(edge => edge.kind === "forward" && edge.source === node.id)?.target,
       };
     }),

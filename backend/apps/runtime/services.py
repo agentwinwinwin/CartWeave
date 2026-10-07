@@ -96,6 +96,10 @@ def start_run(version, store, user, brief, key):
     if store.team_id != version.team_id:
         raise RuleError('店铺不属于当前团队。')
     check_store(store)
+    from apps.registry.business import is_business
+    if is_business(version.document):
+        from .business import start
+        return start(version,store,user,brief,key)
     validate_document(version.document, version.skill, frozen=True)
     if any(n['binding'].get('parameters', {}).get('approvalEnabled') is False for n in version.document['nodes']):
         require_role(user, version.team, ['admin'])
@@ -283,6 +287,12 @@ def cancel(run, user, expected_revision):
 def finish_cancel(run,user=None):
     """Stop at a safe worker boundary; never discard an in-flight external receipt."""
     run.status='cancelled'
+    if run.context.get('business',{}).get('batch_id'):
+        from apps.agents.models import ProductImageBatch
+        from apps.agents.image_service import command
+        b=ProductImageBatch.objects.select_for_update().filter(pk=run.context['business']['batch_id'],team=run.team).first()
+        if b and b.status not in ('delivered','cancelled'):
+            command(b,user or run.requested_by,{'expected_revision':b.revision,'action':'cancel','asset_ids':[],'confirmed':True})
     run.approvals.filter(status='pending').update(status='superseded')
     run.attempts.filter(status='waiting_approval').update(status='cancelled', completed_at=timezone.now())
     WaitCondition.objects.filter(run=run, resolved=False).update(resolved=True)
@@ -393,6 +403,11 @@ def perform(run):
     return {}
 
 def process_job(job_id):
+    from apps.registry.business import is_business
+    job=Outbox.objects.select_related('run__version').get(pk=job_id)
+    if is_business(job.run.version.document):
+        from .business import process
+        return process(job_id)
     token = uuid.uuid4()
     with transaction.atomic():
         job = Outbox.objects.select_for_update().get(pk=job_id)

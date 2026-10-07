@@ -16,9 +16,9 @@ const skill = (description: string, result: string): NodeOperatorPolicy => ({ mo
 const adapter = (description: string, result: string): NodeOperatorPolicy => ({ ...skill(description, result), implementationKind: "adapter", structuralEditing: false });
 
 export const nodeOperatorPolicies: Record<string, NodeOperatorPolicy> = {
-  'image.start':parameters('选择商品事实、规格与原图；独立制作素材，不要求商品已上架。','可追溯的商品与参考素材',['productRef','referenceAssets','usage','imageCount']),
+  'image.start':parameters('单选、多选或全选已确认上架商品；读取原图与已发布事实，独立制作素材。','已上架商品及原图快照',['productRef','referenceAssets','usage','imageCount']),
   'image.brief':skill('制定主图、场景图与细节图方案，保留不可改变的商品事实。','版本化图片制作方案'),
-  'image.generate':skill('选择图片生成 Skill 和服务连接；输出真实素材，不把提示词当图片。','生成图片及来源记录'),
+  'image.generate':fixed('继承首节点的生图连接与制作参数；明确确认方案及费用后调用 Sunburst，保留真实图片与来源。','生成图片及来源记录'),
   'image.check':fixed('检查文件、尺寸与商品一致性，无法自动核实的项目交人工确认。','检查记录与待人工核验项'),
   'image.authorize':parameters('逐张审核图片外观、授权与用途，不合格返回制作方案。','确认后的商品图素材包',['reviewChecklist']),
   'image.end':fixed('交付素材包供上架与推广显式引用，不自动改线上商品。','版本化商品图素材包'),
@@ -60,12 +60,12 @@ export const nodeOperatorPolicies: Record<string, NodeOperatorPolicy> = {
   "insight.authorize": parameters("确认本轮允许调整的范围和预算。", "经确认的调整范围", ["reviewChecklist"]),
   "insight.apply": adapter("配置对应平台的调整 Skill；系统限制已确认的目标、预算、变化幅度及幂等，不让建议直接修改账户。", "实际调整结果"),
   "insight.end": fixed("保存本轮复盘，下轮独立开始。", "经营复盘记录"),
-  "support.start": adapter("配置客服、邮件或平台问题事件 Skill；系统按订单和问题去重，适配器不能自行改变付款或履约事实。", "待处理问题"),
-  "support.context": adapter("按咨询收集商品、订单、物流与政策；当前由用户提供已确认资料，未来连接器按最小权限读取，不虚构订单状态。", "客服资料与缺失项"),
+  "support.start": parameters("选择单条测试消息或持续监听收件箱，配置回复执行器与模型；冻结后按原策略逐条运行，不自动接入其他渠道。", "本次客户消息", ['runtime']),
+  "support.context": fixed("共用店铺连接，经 HTTP 读取消息相关订单与已确认测试政策；缺少事实明确标记，不虚构物流或订单状态。", "客服资料与缺失项"),
   "support.propose": skill("选择已配置模型，通过 Pi harness 执行系统客服 Skill；依据提供的商品、订单与政策资料生成回复、追问或转人工建议，不发送消息。", "回复草稿、依据与转人工建议"),
   "support.authorize": parameters("核对答复事实、政策与需转人工的问题；退款、补发和争议交人工，不由模型自动授权。", "已确认答复或转人工记录", ["reviewChecklist"]),
-  "support.execute": adapter("接入原咨询渠道的消息发送动作，检查已确认回复与消息幂等键；当前未部署发送连接器，不执行退款或补发。", "消息提交回执（不等于送达）"),
-  "support.wait": adapter("查询原消息的送达状态；未知结果不重复发送，等待或转人工核对。当前连接器待接入。", "消息送达结果或待核对记录"),
+  "support.execute": fixed("核对本轮人工确认或冻结自动答复授权及回复摘要，按唯一操作键经 HTTP 保存到测试收件箱；不发送真实邮件，不退款或补发。", "测试收件箱提交回执"),
+  "support.wait": fixed("经 HTTP 回查相同操作键、消息和答复；未知结果不重复发送。仅确认测试收件箱保存，不表示真人阅读。", "测试收件箱核对结果"),
   "support.end": fixed("归档回复与消息证据，待人工问题保持开放；送达不等于客户问题已经解决。", "客服会话记录"),
   "extension.rule": fixed("追加检查，不能创造付款、授权或出库事实。", "检查后的原业务结果"),
   "extension.review": parameters("追加一次人工复核，不能代替必要的动作授权。", "复核意见", ["reviewChecklist"]),

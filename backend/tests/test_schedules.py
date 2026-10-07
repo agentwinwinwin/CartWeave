@@ -193,6 +193,6 @@ class ScheduleTests(TestCase):
         plan['mappingPlanVersion']='1.3.0'
         with self.assertRaises(RuleError):validate_document(document,self.skill)
         validate_document(document,self.skill,frozen=True)
-        for unsupported in ('1.2.0','1.5.0','unknown'):
+        for unsupported in ('1.2.0','1.6.0','unknown'):
             plan['mappingPlanVersion']=unsupported
             with self.assertRaises(RuleError):validate_document(document,self.skill,frozen=True)

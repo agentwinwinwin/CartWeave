@@ -41,6 +41,13 @@ class BusinessList(APIView):
         count=query.count()
         rows=[{'id':str(r.id),'store_id':str(r.store_id),'store_name':r.store.name,**r.payload}
             for r in query.order_by('-observed_at','-id')[(page-1)*50:page*50]]
+        if kind=='orders':
+            shipments=BusinessRecord.objects.filter(team=member.team,kind='shipments',
+                payload__order_id__in=[r['external_id'] for r in rows]).order_by('observed_at')
+            by_order={}
+            for shipment in shipments:
+                by_order.setdefault((str(shipment.store_id),shipment.payload['order_id']),[]).append(shipment.payload)
+            for row in rows:row['shipments']=by_order.get((row['store_id'],row['external_id']),[])
         return Response({'results':rows,'count':count,'page':page,'page_size':50,'stores':store_status(member.team,kind)},headers={'Cache-Control':'no-store'})
 
 
@@ -49,4 +56,8 @@ class BusinessSync(APIView):
         member=membership(request,['approver'])
         if request.data:raise ValidationError('同步只读取已绑定店铺，不接受地址、凭证或业务数据。')
         store=get_object_or_404(Store,pk=pk,team=member.team)
-        return Response(sync_page(member,store,kind))
+        result=sync_page(member,store,kind)
+        if kind=='orders' and 'shipments.read' in store.capabilities:
+            # One explicit sync click reads one order page and one independent shipment page.
+            result['shipments']=sync_page(member,store,'shipments')
+        return Response(result)

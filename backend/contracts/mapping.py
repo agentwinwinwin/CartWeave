@@ -26,7 +26,7 @@ class MappingTurn(Contract):
 
 
 class FieldMapping(Contract):
-    action: Literal['listing.validate', 'listing.publish', 'listing.wait', 'publication.lookup', 'listing.unpublish', 'listing.status', 'orders.read', 'customers.read', 'finance.read'] | None = None
+    action: Literal['listing.validate', 'listing.publish', 'listing.wait', 'publication.lookup', 'listing.unpublish', 'listing.status', 'orders.read', 'customers.read', 'finance.read', 'shipments.read', 'order.detail', 'fulfillment.create', 'fulfillment.lookup', 'shipment.read', 'fulfillment.record', 'test.order.create', 'support.receive', 'support.messages', 'support.context', 'support.reply', 'support.reply.lookup', 'materials.save', 'materials.lookup', 'test.records', 'support.message-feed', 'test.shipment.advance'] | None = None
     direction: Literal['request', 'response']
     fixed_path: str = Field(min_length=1, max_length=200)
     external_path: str = Field(max_length=300)
@@ -38,6 +38,6 @@ class FieldMapping(Contract):
 
 class MappingAnswer(Contract):
     summary: str = Field(min_length=1, max_length=4000)
-    mappings: list[FieldMapping] = Field(max_length=200)
+    mappings: list[FieldMapping] = Field(max_length=500)
     questions: list[str] = Field(max_length=20)
     limitations: list[str] = Field(max_length=20)

@@ -40,7 +40,11 @@ description: 在现有独立站中增量接入 CommerceOS，或对已有平台 A
 
 模型可以帮助解释和提出映射，但已确认规则应固化成代码与测试。未解决的问题只阻塞相关动作；不静默改 CommerceOS 固定输入输出。如果必须扩展契约，提出最小版本化方案并等待确认。
 
-**当前边界提醒：** `commerceos.store-api@1` 的已安装 `test-store.v1` 1.4.0 包覆盖六个发布/下架动作及 `orders.read`、`customers.read`、`finance.read`。后三项是只读增量事实，不授权支付、履约、退款或客户消息。其渠道常量、发布US/USD、UUID回执、active状态等不是所有渠道的通用事实。外部ID须持久关联；异步平台不能用提交回执冒充active。契约无法表达时标注后端缺口。
+**当前边界提醒：** 完整下载的 `commerceos.store-api@1` / `test-store.v1` 1.5.0 同时包含核心 `actions` 和独立 `extensions[].actions`。不要只读取商品发布部分：按用户业务范围检查订单、物流、客户、财务、客服与素材。扩展的路径、版本、入参和回包以各自 Schema 为准，不合并为同名工作流设计契约。测试站协议不是通用平台协议；UUID、US/USD、test_payment、TEST 运单、测试政策和测试收件箱语义不能强套生产站或亚马逊。外部 ID 须持久关联；契约无法表达真实能力时列为缺口，不伪造兼容。
+
+订单到交付涉及 `order.detail`、`fulfillment.create/lookup`、`shipment.read`、`fulfillment.record` 和 `shipments.read`。保存订单行 SKU/数量、订单付款与履约状态、包裹所属订单、承运方/运单/物流事件、事件时间和来源版本。测试创建发货单只表示 prepared，不是已出库；出库不等于签收。独立站回写不是向 CJ 下采购单，采购付款必须使用另行授权的供应商适配器。目标站缺真实物流来源时返回缺口，不能按延时、动画或模型推测 delivered。
+
+客服与商品图在独立扩展内：`support.messages/context/reply/reply.lookup`、`support.message-feed`、`materials.save/lookup`。映射消息 ID、订单上下文、政策来源/摘要、原回复操作键和回执；有序消息页不能用最新 50 条代替完整增量游标。素材归档不等于替换线上商品图。测试订单创建、测试收信和 `test.shipment.advance` 仅用于获授权的测试夹具，不要求生产店铺伪造这些事实。普通模型可读规则做开发，日常代码执行不依赖 Codex。
 
 业务读取按实际Schema映射：请求cursor/limit，回包items/next_cursor/has_more；游标须来自来源记录，重复同步可重放，不跳过资料。订单支付与履约状态分别映射；客户关联使用来源ID，不按姓名猜测。账目按付款日和币种，保留税款、退款、实际成本、来源事件及连续revision；未知成本是null，不是0，不使用模拟付款或选品报价。不能直接提供“利润”替代固定核算字段。没有真实来源记录就返回空页，不生成样本凑数据。
 

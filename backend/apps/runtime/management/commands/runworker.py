@@ -5,6 +5,7 @@ from apps.common.db_retry import transient_database_lock
 from apps.runtime.services import due_jobs, process_job
 from apps.runtime.selection import due_selection_tasks, process_selection
 from apps.runtime.scheduling import dispatch_schedules
+from apps.agents.image_service import due_batches, process_batch
 
 class Command(BaseCommand):
     help = 'Durable local worker without Redis; uses the same jobs as Celery. Single worker for SQLite.'
@@ -27,6 +28,9 @@ class Command(BaseCommand):
                         process_job(job)
                     for task in list(due_selection_tasks()):
                         process_selection(task)
+                    image_jobs=list(due_batches())
+                    for pk in image_jobs:
+                        process_batch(pk)
                 except OperationalError as exc:
                     if not transient_database_lock(exc):
                         raise

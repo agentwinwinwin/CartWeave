@@ -19,6 +19,14 @@ def template(skill):
         'edges': [{'id': f'{a}:{b}', 'source': a, 'target': b, 'kind': 'forward'} for a, b in zip(NODE_IDS, NODE_IDS[1:])], 'customSkills': []}
 
 def validate_document(document, skill, *, frozen=False):
+    from apps.common.errors import RuleError
+    from .business import is_business, validate
+    if is_business(document):
+        if skill is not None:
+            raise RuleError('模型业务不能绑定选品或内容整理执行器，请使用业务流程的冻结入口。')
+        return validate(document, frozen=frozen)
+    if skill is None:
+        raise RuleError('发布图必须绑定受信注册 Skill，不能使用模型业务的空执行器。')
     from .launch import is_launch, validate_launch
     if is_launch(document):
         return validate_launch(document, skill, frozen=frozen)

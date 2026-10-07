@@ -5,14 +5,14 @@ class WorkflowDraft(TeamRecord):
     title = models.CharField(max_length=200)
     revision = models.PositiveIntegerField(default=1)
     document = models.JSONField()
-    skill = models.ForeignKey('skills.SkillVersion', on_delete=models.PROTECT)
+    skill = models.ForeignKey('skills.SkillVersion', on_delete=models.PROTECT, null=True)
 
 class WorkflowVersion(ImmutableRecord):
     workflow = models.ForeignKey(WorkflowDraft, on_delete=models.PROTECT, related_name='versions')
     revision = models.PositiveIntegerField()
     document = models.JSONField()
     digest = models.CharField(max_length=64)
-    skill = models.ForeignKey('skills.SkillVersion', on_delete=models.PROTECT)
+    skill = models.ForeignKey('skills.SkillVersion', on_delete=models.PROTECT, null=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['workflow', 'revision'], name='unique_workflow_revision')]

@@ -1,10 +1,15 @@
 from django.urls import path
+from apps.runtime.business import Command as BusinessCommand
 from apps.api import views as api
 from apps.teststore import views as store
 from apps.connections import views as connections
 from apps.runtime import selection_views
 from apps.connections import mapping_views
 from apps.agents import views as agents
+from apps.agents import image_views
+from apps.agents.operations import OperationReports, OperationReportDetail
+from apps.teststore.testing import TestingContracts, TestingAction, TestLab, MessageFeed, ShipmentAdvance
+from apps.agents.store_materials import MaterialExport
 from apps.api.product_views import Products, ProductUnpublish
 from apps.workflows.design_views import Designs, DesignFreeze, ReleaseDetail
 from apps.workflows.release_views import Releases, ReleaseLifecycle
@@ -15,6 +20,19 @@ from apps.commerce.views import BusinessList, BusinessSync
 from apps.connections.intelligence_views import CJIntelligence, CJIntelligenceLogin, CJIntelligenceCollect, CJIntelligencePlans, CJIntelligencePlan, CJChromePairing, CJChromeBridge
 
 urlpatterns = [
+    path('api/v1/runs/<uuid:pk>/business-command', BusinessCommand.as_view()),
+    path('api/v1/product-image-batches/<uuid:pk>/export-test-store', MaterialExport.as_view()),
+    path('api/v1/stores/<uuid:pk>/test-lab', TestLab.as_view()),
+    path('api/test-store/v1/testing/contracts', TestingContracts.as_view()),
+    path('api/test-store/v1/testing/actions/<str:action>', TestingAction.as_view()),
+    path('api/test-store/v1/testing/message-feed', MessageFeed.as_view()),
+    path('api/test-store/v1/testing/shipment-advance', ShipmentAdvance.as_view()),
+    path('api/v1/operation-reports/<str:kind>', OperationReports.as_view()),
+    path('api/v1/operation-report/<uuid:pk>', OperationReportDetail.as_view()),
+    path('api/v1/product-image-products', image_views.ImageProducts.as_view()),
+    path('api/v1/product-image-batches', image_views.ImageBatches.as_view()),
+    path('api/v1/product-image-batches/<uuid:pk>', image_views.ImageBatchDetail.as_view()),
+    path('api/v1/product-image-assets/<uuid:pk>', image_views.ImageAssetDetail.as_view()),
     path('api/v1/agent-skills', agents.AgentSkills.as_view()),
     path('api/v1/agent-sessions', agents.Sessions.as_view()),
     path('api/v1/agent-sessions/<uuid:pk>', agents.SessionDetail.as_view()),

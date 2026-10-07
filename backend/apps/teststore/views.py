@@ -52,7 +52,7 @@ class Capabilities(StoreAPI):
         from contracts.store_api import ACTION_CONTRACTS
         return Response({'adapter': 'test-store.v1', 'storefront_id': str(request.auth.storefront_id),
             'actions': list(ACTION_CONTRACTS), 'idempotent_publish': True,
-            'package_version': '1.4.0', 'contracts_path': '/api/test-store/v1/contracts'})
+            'package_version': '1.5.0', 'contracts_path': '/api/test-store/v1/contracts'})
 
 class Contracts(StoreAPI):
     def get(self, request):
@@ -69,7 +69,12 @@ class Action(StoreAPI):
         input_model, output_model = ACTION_CONTRACTS[action]
         command = parse(input_model, request.data)
         from contracts.store_business import BUSINESS_ACTIONS
-        if action in BUSINESS_ACTIONS:
+        from contracts.fulfillment import FULFILLMENT_ACTIONS
+        if action in FULFILLMENT_ACTIONS:
+            from .testing import local_only
+            from .fulfillment import execute
+            local_only();result=Response(execute(request.auth,action,command))
+        elif action in BUSINESS_ACTIONS:
             from .models import BusinessEvent
             kind,_,_=BUSINESS_ACTIONS[action]
             rows=list(BusinessEvent.objects.filter(client=request.auth,kind=kind,sequence__gt=int(command['cursor'])).order_by('sequence')[:command['limit']+1])

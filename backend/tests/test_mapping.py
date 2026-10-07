@@ -53,8 +53,8 @@ class MappingTests(TestCase):
         self.assertEqual(response.status_code,201,response.data)
         session=response.data
         self.assertEqual(session['action'],'store.package')
-        self.assertEqual(len(session['contract']['actions']),9)
-        self.assertEqual(session['contract']['version'],'1.4.0')
+        self.assertEqual(len(session['contract']['actions']),26)
+        self.assertEqual(session['contract']['version'],'1.5.0')
         answer={**self.answer,'mappings':[{**self.answer['mappings'][0],'action':'listing.publish'}]}
         with patch('apps.connections.mapping_views.complete',return_value=(json.dumps(answer),{})) as call:
             result=self.turn(session)
@@ -67,7 +67,7 @@ class MappingTests(TestCase):
 
     def test_business_action_mapping_checks_fixed_fields_and_preserves_old_snapshot(self):
         session=self.api.post('/api/v1/mappings',{'channel':'test-store'},format='json').data
-        for action,path in [('orders.read','items[].payment_status'),('customers.read','items[].email'),('finance.read','items[].procurement')]:
+        for action,path in [('orders.read','items[].payment_status'),('customers.read','items[].email'),('finance.read','items[].procurement'),('shipments.read','items[].tracking_number'),('order.detail','lines[].sku'),('support.context','result.context_digest'),('materials.save','result.sha256'),('support.message-feed','next_cursor')]:
             answer={'summary':'依据脱敏文档映射，只读资料。','questions':[],'limitations':[], 'mappings':[
                 {'action':action,'direction':'response','fixed_path':path,'external_path':path,'meaning':'来源业务字段',
                  'conversion':'明确字段直传；未知保留null','evidence':'测试接口Schema与脱敏响应','status':'direct'}]}

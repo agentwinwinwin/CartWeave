@@ -8,8 +8,8 @@ import {modelProtocols,type ModelConnection} from '@/lib/workflow/model-connecti
 import styles from './interface-mapping.module.css';
 
 /** Shared by workflow-level configuration and first-time interface analysis. */
-export function ModelConnectionForm({model,onSaved,onCancel}:{model?:ModelConnection;onSaved:(model:ModelConnection)=>void;onCancel:()=>void}){
-  const [form,setForm]=useState(()=>({name:model?.name??'',protocol:model?.protocol??modelProtocols[0].id,base_url:model?.base_url??modelProtocols[0].baseUrl,model_id:model?.model_id??'',api_key:''}));
+export function ModelConnectionForm({model,initial,onSaved,onCancel}:{model?:ModelConnection;initial?:Partial<ModelConnection>;onSaved:(model:ModelConnection)=>void;onCancel:()=>void}){
+  const [form,setForm]=useState(()=>({name:model?.name??initial?.name??'',protocol:model?.protocol??initial?.protocol??modelProtocols[0].id,base_url:model?.base_url??initial?.base_url??modelProtocols[0].baseUrl,model_id:model?.model_id??initial?.model_id??'',api_key:''}));
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   async function save(){
     setBusy(true);setError('');

@@ -98,7 +98,7 @@ class AgentTests(TestCase):
     def test_runtime_skills_are_separate_from_executable_workflow_registry(self):
         profiles=self.api.get('/api/v1/agent-skills')
         self.assertEqual(profiles.status_code,200)
-        self.assertEqual(len(profiles.data),3)
+        self.assertEqual(len(profiles.data),6)
         for item in profiles.data:
             self.assertEqual(item['kind'],'runtime-model-policy');self.assertEqual(item['tools'],[])
             self.assertNotIn('instructions',item)

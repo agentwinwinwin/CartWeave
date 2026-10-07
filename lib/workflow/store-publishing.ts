@@ -6,7 +6,7 @@ export type PublishingPackage={package:string;version:string;channel:string;stat
 export function applyConnectedStore(document:WorkflowDocument,store:PublishingStore,pkg:PublishingPackage):WorkflowDocument {
  if(document.nodes.some(n=>n.definitionId==='listing.publish'))return applyInstalledStore(document,store,pkg);
  if(!store.active||!store.verified||!Number.isInteger(store.configuration_version)||store.configuration_version<1||store.channel!==document.environment.channel||pkg.channel!==store.channel||pkg.package!==store.adapter||pkg.status!=='implemented-local-test-only')throw Error('店铺连接或接口包未验收，不能复用。');
- return {...document,environment:{...document.environment,storeRef:store.id,storeIntegration:{channel:store.channel,name:store.name,version:pkg.version,actions:storeActionIds.filter(action=>store.capabilities.includes(action)),status:'draft',apiMode:'existing-api'}}};
+ return {...document,environment:{...document.environment,storeRef:store.id,storeIntegration:{channel:store.channel,name:store.name,version:pkg.version,actions:[...store.capabilities],status:'draft',apiMode:'existing-api'}}};
 }
 
 /** New drafts only. Copy one unambiguous saved connection, not old task parameters. */
@@ -24,7 +24,7 @@ export function reuseSavedStoreConnection(document:WorkflowDocument,sources:Work
  * Never changes a store, operational parameter, custom binding, or old release. */
 export function refreshCompatiblePublicationPackage(document:WorkflowDocument,store:PublishingStore,pkg:PublishingPackage):WorkflowDocument {
   const plan=inheritedPublishingPlan(document);
-  if(plan.package!=='test-store.v1'||plan.version!=='1.3.0'||pkg.package!==plan.package||pkg.version!=='1.4.0')return document;
+  if(plan.package!=='test-store.v1'||!['1.3.0','1.4.0'].includes(plan.version)||pkg.package!==plan.package||!['1.4.0','1.5.0'].includes(pkg.version))return document;
   if(store.id!==plan.storeRef||store.configuration_version!==plan.storeVersion)throw Error('店铺连接版本已变化，请在配置店铺接入重新确认；不会自动替换连接。');
   const verified=applyInstalledStore(document,store,pkg);
   for(const action of ['listing.validate','listing.publish','listing.wait']){
@@ -43,7 +43,7 @@ export function applyInstalledStore(document:WorkflowDocument,store:PublishingSt
     if(!manifest||!/^\d+\.\d+\.\d+$/.test(manifest.version)||manifest.entrypointRef!==`installed://${pkg.package}/${action}@${manifest.version}`||manifest.runtime!=='connector'||manifest.input!==definition.input||manifest.output!==definition.output||!manifest.channels.includes(store.channel)||manifest.effects.some(e=>!definition.allowedEffects.includes(e)))throw Error('后端未提供匹配的节点描述，不能伪造绑定。');
     return manifest;
   });
-  return {...document,environment:{...document.environment,storeRef:store.id,storeIntegration:{channel:store.channel,name:store.name,version:pkg.version,actions,status:'draft',apiMode:'existing-api'}},customSkills:[...document.customSkills.filter(s=>!manifests.some(m=>m.id===s.id)),...manifests],nodes:document.nodes.map(n=>{
+  return {...document,environment:{...document.environment,storeRef:store.id,storeIntegration:{channel:store.channel,name:store.name,version:pkg.version,actions:[...store.capabilities],status:'draft',apiMode:'existing-api'}},customSkills:[...document.customSkills.filter(s=>!manifests.some(m=>m.id===s.id)),...manifests],nodes:document.nodes.map(n=>{
     if(n.definitionId==='listing.map')return {...n,binding:{...n.binding,parameters:{mappingMode:'installed',mappingPlanRef:pkg.package,mappingPlanVersion:pkg.version,mappingStoreRef:store.id,mappingStoreVersion:store.configuration_version}}};
     const manifest=manifests.find(m=>m.input===getDefinition(n.definitionId)?.input&&m.output===getDefinition(n.definitionId)?.output&&actions.includes(n.definitionId));
     return manifest?{...n,binding:{skillId:manifest.id,skillVersion:manifest.version,mode:'custom',parameters:{}}}:n;

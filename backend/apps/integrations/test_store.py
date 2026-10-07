@@ -18,6 +18,7 @@ class TestStoreAdapter:
         self.base = settings.TEST_STORE_API_BASE.rstrip('/')
         self.headers = {'Authorization': 'Bearer ' + credential(store)}
         self.store_capabilities=set(store.capabilities)
+        self.store_id=store.id
 
     def call(self, method, path, data=None, allow_missing=False):
         try:

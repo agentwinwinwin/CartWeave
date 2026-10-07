@@ -1,6 +1,8 @@
 export type BusinessStore={id:string;name:string;readable:boolean;synced_at:string|null;has_more:boolean};
 export function resolveSyncStore(stores:BusinessStore[],store:string){return stores.find(s=>s.id===store)??(!store&&stores.length===1?stores[0]:undefined);}
-export type BusinessRow={id:string;store_id:string;store_name:string;external_id:string;revision:number;observed_at:string;source_ref:string;
+export type Shipment={external_id:string;order_id:string;carrier:string;tracking_number:string;status:string;revision:number;observed_at:string;source_ref:string;simulated:boolean;events:{status:string;occurred_at:string;description:string}[]};
+export const shipmentLabels:Record<string,string>={prepared:'待出库',dispatched:'已出库',in_transit:'运输中',delivered:'已签收',exception:'物流异常'};
+export type BusinessRow={id:string;store_id:string;store_name:string;external_id:string;revision:number;observed_at:string;source_ref:string;shipments?:Shipment[];
  customer_name?:string|null;ordered_at?:string;currency?:string;total?:string;payment_status?:string;fulfillment_status?:string;tracking_number?:string|null;item_summary?:string;
  name?:string|null;email?:string|null;country?:string|null;status?:string};
 export type BusinessReport={results:BusinessRow[];count:number;page:number;page_size:number;stores:BusinessStore[]};

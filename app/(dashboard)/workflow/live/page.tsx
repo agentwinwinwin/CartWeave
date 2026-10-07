@@ -1,2 +1,2 @@
-import { LiveWorkflow } from '@/components/commerce/workflow/live-workflow';
-export default function Page(){return <LiveWorkflow/>;}
+import { WorkflowRunPage } from '@/components/commerce/workflow/run-page';
+export default function Page(){return <WorkflowRunPage/>;}

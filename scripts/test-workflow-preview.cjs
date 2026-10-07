@@ -7,7 +7,7 @@ const ts = require("typescript");
 // Compile only these local, side-effect-free design modules in memory. Skill
 // entrypointRef values are data: this loader never imports or executes them.
 const root = path.resolve(__dirname, "..");
-const allowed = new Set(["universal", "contract-schemas", "channels", "client", "operator-policy", "store-publishing", "recommended-defaults", "default-content-skill", "default-runtime-skills", "run-progress", "selection-flow"].map(name => path.join(root, "lib/workflow", `${name}.ts`)));
+const allowed = new Set(["universal", "contract-schemas", "channels", "client", "operator-policy", "store-publishing", "recommended-defaults", "default-content-skill", "default-runtime-skills", "run-progress", "selection-flow", "execution-entry", "schedule-options"].map(name => path.join(root, "lib/workflow", `${name}.ts`)));
 for (const name of ["graph", "model"]) allowed.add(path.join(root, "components/commerce/workflow", `${name}.ts`));
 const cache = new Map();
 function load(filename) {
@@ -28,6 +28,51 @@ function load(filename) {
 }
 const model = load(path.join(root, "lib/workflow/universal.ts"));
 const createCompactWorkflow=model.createWorkflow;
+test('continuous schedule remains visible but only frozen support inbox versions are eligible',()=>{
+ const options=load(path.join(root,'lib/workflow/schedule-options.ts'));
+ assert.equal(options.continuousScheduleAvailable({scope:'support',input_mode:'inbox'}),true);
+ for(const release of [undefined,{scope:'support',input_mode:'message'},{scope:'launch',input_mode:null},{scope:'fulfillment',input_mode:'inbox'},{scope:'product-images',input_mode:null}])assert.equal(options.continuousScheduleAvailable(release),false);
+ assert.match(options.continuousScheduleHint({scope:'support',input_mode:'message'}),/重新冻结/);
+ assert.match(options.continuousScheduleHint({scope:'support',input_mode:'inbox'}),/无消息时不调用模型/);
+ const source=fs.readFileSync(path.join(root,'components/commerce/workflow/schedules.tsx'),'utf8');
+ assert.match(source,/<option value="continuous" disabled=\{!inbox\}>/);
+ assert.match(source,/配置客服持续收件并冻结/);
+ assert.doesNotMatch(source,/styles\.listener|aria-label="一直执行设置"/);
+ assert.match(source,/createPortal\(<dialog/);
+ assert.match(source,/element\?\.showModal\(\)/);
+ assert.doesNotMatch(source,/styles\.withEditor/);
+});
+test('support inbox configuration previews without pinning one message; old message mode still requires one',()=>{
+ const doc=createCompactWorkflow('support');doc.environment.storeRef='fixture-store';
+ doc.nodes[0].binding.parameters.runtime={input_mode:'inbox',message_id:null,reply_policy:'automatic',mode:'fixture',connection_id:null,sample_knowledge_confirmed:true};
+ assert.equal(model.validateWorkflowPreview(doc).valid,true);
+ assert.deepEqual(client.parseWorkflowDocument(JSON.stringify(doc)),doc);
+ doc.nodes[0].binding.parameters.runtime.input_mode='message';
+ assert.equal(model.validateWorkflowPreview(doc).valid,false);
+ doc.nodes[0].binding.parameters.runtime.message_id='fixture-message';
+ doc.nodes[0].binding.parameters.runtime.reply_policy='manual';
+ assert.equal(model.validateWorkflowPreview(doc).valid,true);
+});
+test('implemented business graphs freeze independently of publication; review stays independent',()=>{
+ const {executionEntry}=load(path.join(root,'lib/workflow/execution-entry.ts'));
+ assert.equal(executionEntry('launch').kind,'frozen');
+ for(const [id,node] of [['support','support.propose'],['product-images','image.start']]){
+  const entry=executionEntry(id);
+  assert.equal(entry.kind,'frozen');assert.equal(entry.node,node);
+  assert(createCompactWorkflow(id).nodes.some(n=>n.definitionId===node));
+ }
+ assert.equal(executionEntry('optimize').kind,'independent');
+ assert.equal(executionEntry('fulfillment').kind,'frozen');
+ for(const id of ['campaign','unknown'])assert.equal(executionEntry(id).kind,'design');
+});
+test('local fulfillment uses one frozen eight-step graph with explicit test authorization',()=>{
+ const doc=createCompactWorkflow('fulfillment','test-store','merchant');doc.environment.storeRef='fixture-store';
+ doc.nodes[0].binding.parameters.runtime={order_id:'fixture-order',test_execution_confirmed:true};
+ assert.equal(model.validateWorkflowPreview(doc).valid,true);
+ assert.deepEqual(client.parseWorkflowDocument(JSON.stringify(doc)),JSON.parse(JSON.stringify(doc)));
+ doc.environment.fulfillment='supplier';assert.equal(model.validateWorkflowPreview(doc).valid,false);
+ doc.environment.fulfillment='merchant';doc.nodes.pop();assert.equal(model.validateWorkflowPreview(doc).valid,false);
+});
 // Existing graph-edit regressions exercise the historical thirteen-step graph.
 // The current eleven-step template has explicit coverage below and in the browser test.
 function withoutIntelligence(doc){const nodes=doc.nodes.filter(n=>n.definitionId!=='market.intelligence');return {...doc,nodes,edges:[...model.forwardEdges(nodes),...doc.edges.filter(e=>e.kind!=='forward')]};}
@@ -194,7 +239,7 @@ test('image production is independent while promotion and first advertising rema
  assert.deepEqual(promotion.nodes.map(n=>n.definitionId),['campaign.start','campaign.creative','campaign.authorize','campaign.submit','campaign.wait','campaign.activate','campaign.end']);
  assert(!promotion.nodes.some(n=>n.definitionId==='image.generate'));
  for(const node of image.nodes)assert(!model.getSkill(node.binding.skillId).effects.some(e=>['spend','remote_write'].includes(e)));
- assert.equal(operator.getNodeOperatorPolicy('image.generate').mode,'skill');
+ assert.equal(operator.getNodeOperatorPolicy('image.generate').mode,'fixed');
  assert.equal(operator.getNodeOperatorPolicy('image.check').mode,'fixed');
  assert.equal(check(promotion).valid,true);
  assert.ok(model.getSkill('campaign.creative.core').parameterSchema.imagePackRef);
@@ -585,9 +630,13 @@ test("fixed system steps cannot be structurally edited by operators; optional st
   for (const id of ["listing.publish", "product.cost", "product.authorize", "order.dispatch", "order.record"]) assert.equal(operator.canOperatorEditStructure(id), false);
   for (const id of ["product.decide", "content.make", "extension.skill", "extension.review"]) assert.equal(operator.canOperatorEditStructure(id), true);
 });
-test("all platform adapters expose configurable Skills without making business steps removable",()=>{
+test("platform adapters remain configurable; implemented support inherits one connection",()=>{
   for(const definition of model.nodeDefinitions.filter(d=>model.isChannelAdapter(d.id))){
     const policy=operator.getNodeOperatorPolicy(definition.id);
+    if(definition.id.startsWith('support.')){
+      assert.equal(policy.mode,definition.id==='support.start'?'parameters':'fixed');
+      assert.equal(operator.canOperatorEditStructure(definition.id),false);continue;
+    }
     assert.equal(policy.mode,"skill",definition.id);
     assert.equal(policy.implementationKind,"adapter",definition.id);
     assert.equal(operator.canOperatorEditStructure(definition.id),false,definition.id);
